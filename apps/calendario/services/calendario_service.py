@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 from apps.calendario.models import EventoCalendario
 
 class CalendarioService:
-    """Servicio maestro sincronizado con los tipos del modelo."""
+    """Servicio maestro sincronizado con los tipos del modelo y detección de día actual."""
 
     @staticmethod
     def obtener_mapeo_colores():
@@ -29,7 +29,7 @@ class CalendarioService:
             "Labour Day": "Fiesta del Trabajo", "Saint John the Baptist": "San Juan", 
             "Galician National Day": "Día de Galicia", "Assumption of Mary": "Asunción", 
             "National Day": "Fiesta Nacional", "All Saints' Day": "Todos los Santos", 
-            "Constitution Day": "Constitution", "Inmaculada Conception": "Inmaculada", 
+            "Constitution Day": "Constitución", "Inmaculada Conception": "Inmaculada", 
             "Christmas Day": "Navidad"
         }
         return traducciones.get(nombre_en, nombre_en)
@@ -38,6 +38,9 @@ class CalendarioService:
     def obtener_mes(cls, año: int, mes: int) -> Dict[str, Any]:
         from apps.horario.services.horario_service import HorarioService
         from apps.horario.models import RegistroDiario
+        
+        # Fecha actual para resaltar el día de hoy
+        hoy = date.today()
         
         cal = calendar.Calendar(firstweekday=0)
         mes_it = cal.monthdatescalendar(año, mes)
@@ -90,6 +93,7 @@ class CalendarioService:
                     'dia': dia.day,
                     'fecha': dia.strftime('%Y-%m-%d'),
                     'es_mes_actual': dia.month == mes,
+                    'es_hoy': dia == hoy, # Comparación crucial para el círculo en el template
                     'total_str': HorarioService.decimal_a_hhmm(total_dia) if total_dia > 0 else "",
                     'tipo_dia': ev['label'] if ev else "",
                     'tipo_raw': ev['tipo'] if ev else "",
