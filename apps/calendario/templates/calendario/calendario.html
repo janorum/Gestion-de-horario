@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-xl-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0 text-dark">{{ nombre_mes }} {{ año }}</h4>
+            <div class="btn-group shadow-sm">
+                <a href="?mes={{ mes|add:'-1' }}&año={{ año }}" class="btn btn-white border">&laquo;</a>
+                <button class="btn btn-white border fw-bold" disabled>{{ nombre_mes }}</button>
+                <a href="?mes={{ mes|add:'1' }}&año={{ año }}" class="btn btn-white border">&raquo;</a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-3 bg-light">
+            <div class="card-body p-2 d-flex flex-wrap justify-content-center gap-3">
+                <div class="d-flex align-items-center"><span class="badge bg-danger me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">FESTIVO</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-success me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">VACACIONES</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-primary me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">ASUNTOS PROPIOS</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-warning me-1 text-dark">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">BAJA</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-info me-1 text-dark">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">ENFERMEDAD</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-secondary me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">OTRO</small></div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+            <table class="table table-bordered mb-0 text-center" style="table-layout: fixed;">
+                <thead class="bg-light small fw-bold text-muted">
+                    <tr>
+                        <th style="width: 14.28%;">LUN</th><th style="width: 14.28%;">MAR</th>
+                        <th style="width: 14.28%;">MIÉ</th><th style="width: 14.28%;">JUE</th>
+                        <th style="width: 14.28%;">VIE</th><th style="width: 14.28%;">SÁB</th>
+                        <th style="width: 14.28%;">DOM</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for semana in semanas %}
+                    <tr style="height: 110px;">
+                        {% for dia in semana %}
+                        <td class="p-0 position-relative dia-calendario {{ dia.clase_evento }} {% if not dia.es_mes_actual %}opacity-25{% endif %}" 
+                            style="cursor: pointer; vertical-align: top;" 
+                            onclick="abrirEditor('{{ dia.fecha }}', '{{ dia.descripcion }}')"
+                            title="Click para editar">
+                            
+                            <div class="p-1 h-100 d-flex flex-column text-start">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <span class="fw-bold small">{{ dia.dia }}</span>
+                                    {% if dia.total_str %}
+                                        <span class="badge bg-dark opacity-75" style="font-size:0.55rem">{{ dia.total_str }}</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if dia.tipo_dia %}
+                                <div class="mt-1 d-flex flex-column">
+                                    <div class="fw-bolder text-uppercase" style="font-size: 0.6rem; line-height: 1;">
+                                        {{ dia.tipo_dia }}
+                                    </div>
+                                    {% if dia.descripcion %}
+                                    <div class="opacity-90 mt-1 pt-1 border-top border-dark border-opacity-10" 
+                                         style="font-size: 0.55rem; line-height: 1.1; font-style: italic; word-wrap: break-word;">
+                                        {{ dia.descripcion }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card shadow-sm border-0 h-100 d-flex flex-column" style="max-height: 700px;">
+            <div class="card-header bg-dark text-white py-2">
+                <h6 class="mb-0 small fw-bold text-uppercase">Resumen {{ año }}</h6>
+            </div>
+            <div class="card-body p-0 overflow-auto">
+                <div class="accordion accordion-flush" id="accFestivos">
+                    {% for mes_nombre, eventos in eventos_organizados.items %}
+                    {% if eventos %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed py-2 small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#m{{ forloop.counter }}">
+                                {{ mes_nombre }} <span class="badge bg-light text-dark border ms-2">{{ eventos|length }}</span>
+                            </button>
+                        </h2>
+                        <div id="m{{ forloop.counter }}" class="accordion-collapse collapse">
+                            <div class="accordion-body p-0">
+                                {% for ev in eventos %}
+                                <div class="p-2 border-bottom d-flex justify-content-between align-items-center {{ ev.clase }}" style="border-left: 4px solid rgba(0,0,0,0.2) !important;">
+                                    <div>
+                                        <div class="fw-bold small">{{ ev.nombre }}</div>
+                                        <div class="small opacity-85" style="font-size:0.65rem">{{ ev.fecha|date:"d M" }} - {{ ev.tipo_label }}</div>
+                                    </div>
+                                    {% if ev.borrable %}
+                                    <a href="{% url 'calendario:borrar_evento' ev.id %}" class="btn btn-sm btn-light border p-0 px-2 fw-bold" style="color: inherit;">&times;</a>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDia" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <form action="{% url 'calendario:guardar_evento' %}" method="POST" class="modal-content border-0 shadow">
+            {% csrf_token %}
+            <div class="modal-header bg-light py-2">
+                <h6 class="modal-title fw-bold text-dark small text-uppercase">Configurar Día</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="fecha" id="input-fecha">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Día</label>
+                    <div id="label-fecha" class="form-control-plaintext fw-bold text-primary py-0 fs-5"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Tipo</label>
+                    <select name="tipo" class="form-select form-select-sm" required>
+                        <option value="" disabled selected>Elegir tipo...</option>
+                        {% for valor, etiqueta in tipos_opciones %}
+                        <option value="{{ valor }}">{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Descripción</label>
+                    <input type="text" name="descripcion" id="input-desc" class="form-control form-control-sm" placeholder="Ej: Gripe, Viaje...">
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0 py-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold shadow-sm">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function abrirEditor(fecha, descActual) {
+    document.getElementById('input-fecha').value = fecha;
+    const partes = fecha.split('-');
+    document.getElementById('label-fecha').innerText = `${partes[2]}/${partes[1]}/${partes[0]}`;
+    document.getElementById('input-desc').value = (descActual === 'None' || descActual === '') ? '' : descActual;
+    var myModal = new bootstrap.Modal(document.getElementById('modalDia'));
+    myModal.show();
+}
+</script>
+
+<style>
+    .dia-calendario:hover { filter: brightness(0.92); transition: 0.2s; }
+    .dia-calendario { border: 1px solid #dee2e6 !important; }
+    .accordion-button:focus { box-shadow: none; }
+    .btn-light { background-color: rgba(255,255,255,0.2); border: none; color: white !important; }
+    .btn-light:hover { background-color: rgba(255,255,255,0.4); }
+    .badge { min-width: 15px; }
+</style>
+{% endblock %}

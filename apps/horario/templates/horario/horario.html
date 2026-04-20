@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4 align-items-end">
+    <div class="col-md-4">
+        <label class="form-label small fw-bold text-muted text-uppercase">Seleccionar Fecha</label>
+        <form method="GET" class="d-flex gap-2">
+            <input type="date" name="fecha" class="form-control shadow-sm" value="{{ fecha_ref|date:'Y-m-d' }}">
+            <button type="submit" class="btn btn-primary px-4 shadow-sm">Ir</button>
+        </form>
+    </div>
+    <div class="col-md-8 text-end">
+        <h5 class="fw-bold text-dark mb-1">Semana del {{ lunes|date:"d M Y" }}</h5>
+        <span class="badge bg-light text-primary border">Objetivo Semanal: <span id="val-objetivo">{{ obj_sem_str }}</span>h</span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-start ps-4 py-3">Día / Fecha</th>
+                            <th>Entrada M</th><th>Salida M</th>
+                            <th class="bg-light text-primary">Subtotal M</th>
+                            <th>Entrada T</th><th>Salida T</th>
+                            <th class="bg-light text-primary">Subtotal T</th>
+                            <th class="pe-4">Total Diario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dias %}
+                        <tr data-fecha="{{ item.fecha|date:'Y-m-d' }}">
+                            <td class="text-start ps-4">
+                                <div class="fw-bold text-dark">{{ item.nombre }}</div>
+                                <div class="small text-muted">{{ item.fecha|date:"d/m/Y" }}</div>
+                            </td>
+                            <td><input type="time" name="m_in" class="time-input w-100 text-center border-0 bg-transparent" value="{{ item.reg.m_in|time:'H:i' }}"></td>
+                            <td><input type="time" name="m_out" class="time-input w-100 text-center border-0 bg-transparent" value="{{ item.reg.m_out|time:'H:i' }}"></td>
+                            <td class="bg-light fw-bold text-primary subtotal-m-celda">{{ item.total_m_str }}</td>
+                            <td><input type="time" name="t_in" class="time-input w-100 text-center border-0 bg-transparent" value="{{ item.reg.t_in|time:'H:i' }}"></td>
+                            <td><input type="time" name="t_out" class="time-input w-100 text-center border-0 bg-transparent" value="{{ item.reg.t_out|time:'H:i' }}"></td>
+                            <td class="bg-light fw-bold text-primary subtotal-t-celda">{{ item.total_t_str }}</td>
+                            <td class="pe-4">
+                                <span class="badge bg-dark fs-6 total-dia-celda">{{ item.total_dia_str }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light border-top">
+                        <tr class="fw-bold text-dark">
+                            <td colspan="3" class="text-end py-3">TOTALES SEMANALES:</td>
+                            <td class="text-primary" id="footer-total-m">{{ totales_semanales.mañana }}</td>
+                            <td colspan="2"></td>
+                            <td class="text-primary" id="footer-total-t">{{ totales_semanales.tarde }}</td>
+                            <td class="pe-4 fs-5" id="footer-total-gen">{{ totales_semanales.total }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card p-3 border-start border-success border-5 shadow-sm text-center">
+                    <small class="text-muted text-uppercase fw-bold">Realizado</small>
+                    <div class="h4 fw-bold mb-0 text-success" id="kpi-realizado">{{ totales_semanales.total }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 border-start border-info border-5 shadow-sm text-center">
+                    <small class="text-muted text-uppercase fw-bold">Diferencia</small>
+                    <div class="h4 fw-bold mb-0 text-info" id="kpi-diferencia">{{ faltan_str }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div id="kpi-status-card" class="card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center {% if cumple %}bg-success text-white{% else %}bg-warning text-dark{% endif %}">
+                    <div class="fw-bold text-uppercase" id="kpi-status-text">
+                        {% if cumple %}¡Objetivo Cumplido!{% else %}Horas Pendientes{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function parseTime(hhmm) {
+    if (!hhmm || hhmm === "00:00") return 0;
+    const [h, m] = hhmm.split(':').map(Number);
+    return h + (m / 60);
+}
+
+function formatTime(decimal) {
+    const totalMin = Math.round(decimal * 60);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+async function recalcularPantalla() {
+    let sumM = 0, sumT = 0;
+    document.querySelectorAll('.subtotal-m-celda').forEach(td => sumM += parseTime(td.innerText));
+    document.querySelectorAll('.subtotal-t-celda').forEach(td => sumT += parseTime(td.innerText));
+    
+    const totalGen = sumM + sumT;
+    const objetivo = parseTime(document.getElementById('val-objetivo').innerText);
+
+    document.getElementById('footer-total-m').innerText = formatTime(sumM);
+    document.getElementById('footer-total-t').innerText = formatTime(sumT);
+    document.getElementById('footer-total-gen').innerText = formatTime(totalGen);
+    document.getElementById('kpi-realizado').innerText = formatTime(totalGen);
+    document.getElementById('kpi-diferencia').innerText = formatTime(Math.max(0, objetivo - totalGen));
+
+    const card = document.getElementById('kpi-status-card');
+    const txt = document.getElementById('kpi-status-text');
+    if (totalGen >= objetivo) {
+        card.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center bg-success text-white";
+        txt.innerText = "¡Objetivo Cumplido!";
+    } else {
+        card.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center bg-warning text-dark";
+        txt.innerText = "Horas Pendientes";
+    }
+}
+
+document.querySelectorAll('.time-input').forEach(input => {
+    input.addEventListener('change', async function() {
+        const tr = this.closest('tr');
+        const payload = {
+            fecha: tr.dataset.fecha,
+            campo: this.name,
+            valor: this.value
+        };
+
+        try {
+            const res = await fetch('/horario/api/guardar/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (data.status === 'success') {
+                tr.querySelector('.subtotal-m-celda').innerText = data.subtotal_m;
+                tr.querySelector('.subtotal-t-celda').innerText = data.subtotal_t;
+                tr.querySelector('.total-dia-celda').innerText = data.total_dia;
+                recalcularPantalla();
+            }
+        } catch (err) {
+            console.error("Error al guardar:", err);
+        }
+    });
+});
+</script>
+{% endblock %}
