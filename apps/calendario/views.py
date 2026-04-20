@@ -4,6 +4,7 @@ from .services.calendario_service import CalendarioService
 from .models import EventoCalendario
 
 def vista_calendario(request):
+    """Vista principal con el nombre de variable actualizado."""
     hoy = datetime.now()
     año = int(request.GET.get('año', hoy.year))
     mes = int(request.GET.get('mes', hoy.month))
@@ -18,8 +19,8 @@ def vista_calendario(request):
     
     context = {
         'semanas': datos['semanas'],
-        'eventos_organizados': datos['eventos_organizados'],
-        'tipos_opciones': datos['tipos_opciones'], # Aseguramos que llegue al template
+        'resumen_anual': datos['resumen_anual'], # <--- CAMBIADO AQUÍ (antes era eventos_organizados)
+        'tipos_opciones': datos['tipos_opciones'],
         'nombre_mes': nombres_meses[mes-1],
         'año': año,
         'mes': mes,
@@ -31,11 +32,14 @@ def api_guardar_evento(request):
         fecha = request.POST.get('fecha')
         tipo = request.POST.get('tipo')
         descripcion = request.POST.get('descripcion', '')
-        if fecha and tipo:
-            EventoCalendario.objects.update_or_create(
-                fecha=fecha, 
-                defaults={'tipo': tipo, 'descripcion': descripcion}
-            )
+        if fecha:
+            if tipo == 'BORRAR':
+                EventoCalendario.objects.filter(fecha=fecha).delete()
+            elif tipo:
+                EventoCalendario.objects.update_or_create(
+                    fecha=fecha, 
+                    defaults={'tipo': tipo, 'descripcion': descripcion}
+                )
     return redirect('calendario:ver_calendario')
 
 def api_borrar_evento(request, id):

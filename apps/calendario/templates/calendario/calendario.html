@@ -14,12 +14,11 @@
 
         <div class="card shadow-sm border-0 mb-3 bg-light">
             <div class="card-body p-2 d-flex flex-wrap justify-content-center gap-3">
-                <div class="d-flex align-items-center"><span class="badge bg-danger me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">FESTIVO</small></div>
-                <div class="d-flex align-items-center"><span class="badge bg-success me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">VACACIONES</small></div>
-                <div class="d-flex align-items-center"><span class="badge bg-primary me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">ASUNTOS PROPIOS</small></div>
-                <div class="d-flex align-items-center"><span class="badge bg-warning me-1 text-dark">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">BAJA</small></div>
-                <div class="d-flex align-items-center"><span class="badge bg-info me-1 text-dark">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">ENFERMEDAD</small></div>
-                <div class="d-flex align-items-center"><span class="badge bg-secondary me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.7rem;">OTRO</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-danger me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.65rem;">FESTIVO</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-warning me-1 text-white">&nbsp;</span> <small class="fw-bold" style="font-size: 0.65rem;">F. EXTRA</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-success me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.65rem;">VACACIONES</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-primary me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.65rem;">ASUNTOS PROPIOS</small></div>
+                <div class="d-flex align-items-center"><span class="badge bg-secondary me-1">&nbsp;</span> <small class="fw-bold" style="font-size: 0.65rem;">OTRO</small></div>
             </div>
         </div>
         
@@ -39,7 +38,7 @@
                         {% for dia in semana %}
                         <td class="p-0 position-relative dia-calendario {{ dia.clase_evento }} {% if not dia.es_mes_actual %}opacity-25{% endif %}" 
                             style="cursor: pointer; vertical-align: top;" 
-                            onclick="abrirEditor('{{ dia.fecha }}', '{{ dia.descripcion }}')"
+                            onclick="abrirEditor('{{ dia.fecha }}', '{{ dia.tipo_dia }}', '{{ dia.descripcion }}', '{{ dia.tipo_raw }}', '{{ dia.es_oficial|yesno:'true,false' }}')"
                             title="Click para editar">
                             
                             <div class="p-1 h-100 d-flex flex-column text-start">
@@ -52,7 +51,7 @@
 
                                 {% if dia.tipo_dia %}
                                 <div class="mt-1 d-flex flex-column">
-                                    <div class="fw-bolder text-uppercase" style="font-size: 0.6rem; line-height: 1;">
+                                    <div class="fw-bolder text-uppercase text-truncate" style="font-size: 0.6rem; line-height: 1;">
                                         {{ dia.tipo_dia }}
                                     </div>
                                     {% if dia.descripcion %}
@@ -74,29 +73,41 @@
     </div>
 
     <div class="col-xl-4">
-        <div class="card shadow-sm border-0 h-100 d-flex flex-column" style="max-height: 700px;">
+        <div class="card shadow-sm border-0 h-100 d-flex flex-column" style="max-height: 750px;">
             <div class="card-header bg-dark text-white py-2">
-                <h6 class="mb-0 small fw-bold text-uppercase">Resumen {{ año }}</h6>
+                <h6 class="mb-0 small fw-bold text-uppercase">Resumen Anual {{ año }}</h6>
             </div>
             <div class="card-body p-0 overflow-auto">
                 <div class="accordion accordion-flush" id="accFestivos">
-                    {% for mes_nombre, eventos in eventos_organizados.items %}
-                    {% if eventos %}
+                    {% for mes_nombre, info in resumen_anual.items %}
+                    {% if info.eventos %}
                     <div class="accordion-item">
                         <h2 class="accordion-header">
-                            <button class="accordion-button collapsed py-2 small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#m{{ forloop.counter }}">
-                                {{ mes_nombre }} <span class="badge bg-light text-dark border ms-2">{{ eventos|length }}</span>
+                            <button class="accordion-button collapsed py-2 d-flex align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#m{{ forloop.counter }}">
+                                <span class="fw-bold small me-2">{{ mes_nombre }}</span>
+                                <span class="badge bg-dark rounded-pill me-auto" style="font-size: 0.65rem;">T: {{ info.eventos|length }}</span>
+                                
+                                <div class="d-flex gap-1 ms-2">
+                                    {% for tipo, cantidad in info.conteos.items %}
+                                        {% if tipo == 'FESTIVO' %}<span class="badge bg-danger p-1" style="min-width: 18px;">{{ cantidad }}</span>
+                                        {% elif tipo == 'FESTIVO_EXTRA' %}<span class="badge bg-warning text-white p-1" style="min-width: 18px;">{{ cantidad }}</span>
+                                        {% elif tipo == 'VACACIONES' %}<span class="badge bg-success p-1" style="min-width: 18px;">{{ cantidad }}</span>
+                                        {% elif tipo == 'ASUNTOS_PROPIOS' %}<span class="badge bg-primary p-1" style="min-width: 18px;">{{ cantidad }}</span>
+                                        {% else %}<span class="badge bg-secondary p-1" style="min-width: 18px;">{{ cantidad }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
                             </button>
                         </h2>
                         <div id="m{{ forloop.counter }}" class="accordion-collapse collapse">
                             <div class="accordion-body p-0">
-                                {% for ev in eventos %}
+                                {% for ev in info.eventos %}
                                 <div class="p-2 border-bottom d-flex justify-content-between align-items-center {{ ev.clase }}" style="border-left: 4px solid rgba(0,0,0,0.2) !important;">
                                     <div>
                                         <div class="fw-bold small">{{ ev.nombre }}</div>
                                         <div class="small opacity-85" style="font-size:0.65rem">{{ ev.fecha|date:"d M" }} - {{ ev.tipo_label }}</div>
                                     </div>
-                                    {% if ev.borrable %}
+                                    {% if ev.borrable and ev.id %}
                                     <a href="{% url 'calendario:borrar_evento' ev.id %}" class="btn btn-sm btn-light border p-0 px-2 fw-bold" style="color: inherit;">&times;</a>
                                     {% endif %}
                                 </div>
@@ -114,7 +125,7 @@
 
 <div class="modal fade" id="modalDia" tabindex="-1">
     <div class="modal-dialog modal-sm modal-dialog-centered">
-        <form action="{% url 'calendario:guardar_evento' %}" method="POST" class="modal-content border-0 shadow">
+        <form action="{% url 'calendario:guardar_evento' %}" method="POST" id="form-dia" class="modal-content border-0 shadow">
             {% csrf_token %}
             <div class="modal-header bg-light py-2">
                 <h6 class="modal-title fw-bold text-dark small text-uppercase">Configurar Día</h6>
@@ -126,44 +137,90 @@
                     <label class="form-label small fw-bold text-muted text-uppercase">Día</label>
                     <div id="label-fecha" class="form-control-plaintext fw-bold text-primary py-0 fs-5"></div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted text-uppercase">Tipo</label>
-                    <select name="tipo" class="form-select form-select-sm" required>
-                        <option value="" disabled selected>Elegir tipo...</option>
-                        {% for valor, etiqueta in tipos_opciones %}
-                        <option value="{{ valor }}">{{ etiqueta }}</option>
-                        {% endfor %}
-                    </select>
+                <div id="controles-edicion">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Tipo</label>
+                        <select name="tipo" id="select-tipo" class="form-select form-select-sm" required>
+                            <option value="" disabled selected>Elegir tipo...</option>
+                            {% for valor, etiqueta in tipos_opciones %}
+                            <option value="{{ valor }}">{{ etiqueta }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Descripción</label>
+                        <input type="text" name="descripcion" id="input-desc" class="form-control form-control-sm" placeholder="Ej: Gripe, Viaje...">
+                    </div>
                 </div>
-                <div class="mb-0">
-                    <label class="form-label small fw-bold text-muted text-uppercase">Descripción</label>
-                    <input type="text" name="descripcion" id="input-desc" class="form-control form-control-sm" placeholder="Ej: Gripe, Viaje...">
+                <div id="msg-oficial" class="alert alert-info py-2 small mb-0" style="display:none;">
+                    Este es un festivo oficial y no se puede modificar.
                 </div>
             </div>
-            <div class="modal-footer bg-light border-0 py-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold shadow-sm">Guardar</button>
+            <div class="modal-footer bg-light border-0 py-2 d-flex flex-column gap-2">
+                <button type="submit" id="btn-guardar" class="btn btn-primary btn-sm w-100 fw-bold shadow-sm">Guardar</button>
+                <button type="button" id="btn-desmarcar" class="btn btn-outline-danger btn-sm w-100 fw-bold" onclick="desmarcarDia()">
+                    Desmarcar Día
+                </button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-function abrirEditor(fecha, descActual) {
+function abrirEditor(fecha, tipoDia, descActual, tipoRaw, esOficial) {
     document.getElementById('input-fecha').value = fecha;
     const partes = fecha.split('-');
     document.getElementById('label-fecha').innerText = `${partes[2]}/${partes[1]}/${partes[0]}`;
     document.getElementById('input-desc').value = (descActual === 'None' || descActual === '') ? '' : descActual;
+    
+    const selectTipo = document.getElementById('select-tipo');
+    const controles = document.getElementById('controles-edicion');
+    const msgOficial = document.getElementById('msg-oficial');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnBorrar = document.getElementById('btn-desmarcar');
+
+    if (esOficial === 'true') {
+        controles.style.display = 'none';
+        msgOficial.style.display = 'block';
+        btnGuardar.style.display = 'none';
+        btnBorrar.style.display = 'none';
+    } else {
+        controles.style.display = 'block';
+        msgOficial.style.display = 'none';
+        btnGuardar.style.display = 'block';
+        
+        if (tipoRaw && tipoRaw !== 'None' && tipoRaw !== '') {
+            selectTipo.value = (tipoRaw === 'FESTIVO_EXTRA') ? 'FESTIVO' : tipoRaw;
+        } else {
+            selectTipo.value = "";
+        }
+        btnBorrar.style.display = (tipoRaw && tipoRaw !== '' && tipoRaw !== 'None') ? 'block' : 'none';
+    }
+
     var myModal = new bootstrap.Modal(document.getElementById('modalDia'));
     myModal.show();
+}
+
+function desmarcarDia() {
+    const select = document.getElementById('select-tipo');
+    let optBorrar = select.querySelector('option[value="BORRAR"]');
+    if (!optBorrar) {
+        optBorrar = document.createElement('option');
+        optBorrar.value = 'BORRAR';
+        optBorrar.text = 'BORRAR';
+        select.appendChild(optBorrar);
+    }
+    optBorrar.selected = true;
+    select.closest('form').submit();
 }
 </script>
 
 <style>
     .dia-calendario:hover { filter: brightness(0.92); transition: 0.2s; }
-    .dia-calendario { border: 1px solid #dee2e6 !important; }
+    .dia-calendario { border: 1px solid #dee2e6 !important; background-color: #fff; }
     .accordion-button:focus { box-shadow: none; }
+    .accordion-button::after { margin-left: 10px; } /* Separa la flecha de los badges */
     .btn-light { background-color: rgba(255,255,255,0.2); border: none; color: white !important; }
     .btn-light:hover { background-color: rgba(255,255,255,0.4); }
-    .badge { min-width: 15px; }
 </style>
 {% endblock %}

@@ -5,19 +5,19 @@ from typing import Dict, Any, List
 from apps.calendario.models import EventoCalendario
 
 class CalendarioService:
-    """Servicio maestro de fechas y eventos con mapeo de colores corregido."""
+    """Servicio maestro con contadores detallados por tipo de día."""
 
     @staticmethod
     def obtener_mapeo_colores():
-        """Define la identidad visual. Aseguramos que 'OTRO' tenga su color."""
         return {
             'FESTIVO':        'bg-danger text-white',      
+            'FESTIVO_EXTRA':  'bg-warning text-white',     
             'VACACIONES':     'bg-success text-white',     
             'ASUNTOS_PROPIOS':'bg-primary text-white',     
             'BAJA':           'bg-warning text-dark',      
             'ENFERMEDAD':     'bg-info text-dark',         
             'SIN_SUELDO':     'bg-secondary text-white',
-            'OTRO':           'bg-secondary text-white', # Color para el tipo OTRO
+            'OTRO':           'bg-secondary text-white', 
         }
 
     @staticmethod
@@ -43,29 +43,41 @@ class CalendarioService:
         mes_it = cal.monthdatescalendar(año, mes)
         colores = cls.obtener_mapeo_colores()
         
-        festivos_raw = holidays.CountryHoliday('ES', prov='GA', years=año)
+        festivos_oficiales = holidays.CountryHoliday('ES', prov='GA', years=año)
         eventos_db = EventoCalendario.objects.filter(fecha__year=año)
         
         mapa_eventos = {}
-        for fecha, nombre in festivos_raw.items():
-            mapa_eventos[fecha] = {'tipo': 'FESTIVO', 'label': 'FESTIVO', 'desc': cls.traducir_festivo(nombre)}
+        for fecha, nombre in festivos_oficiales.items():
+            mapa_eventos[fecha] = {'tipo': 'FESTIVO', 'label': 'FESTIVO', 'desc': cls.traducir_festivo(nombre), 'es_oficial': True}
         
         for e in eventos_db:
-            mapa_eventos[e.fecha] = {'tipo': e.tipo, 'label': e.get_tipo_display(), 'desc': e.descripcion}
+            tipo_key = 'FESTIVO_EXTRA' if e.tipo == 'FESTIVO' else e.tipo
+            mapa_eventos[e.fecha] = {'tipo': tipo_key, 'label': e.get_tipo_display(), 'desc': e.descripcion, 'es_oficial': False, 'id': e.id}
 
         meses_nombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                          "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-        organizado = {nombre: [] for nombre in meses_nombres}
+        
+        # Estructura para el resumen: eventos y conteos por mes
+        resumen_anual = {nombre: {'eventos': [], 'conteos': {}} for nombre in meses_nombres}
         
         for fecha, info in sorted(mapa_eventos.items()):
-            organizado[meses_nombres[fecha.month-1]].append({
-                'id': EventoCalendario.objects.filter(fecha=fecha).first().id if info['tipo'] != 'FESTIVO' else None,
+            nombre_mes = meses_nombres[fecha.month-1]
+            tipo = info['tipo']
+            id_evento = info.get('id')
+            
+            # Añadir evento a la lista
+            resumen_anual[nombre_mes]['eventos'].append({
+                'id': id_evento,
                 'fecha': fecha,
                 'nombre': info['desc'] or info['label'],
                 'tipo_label': info['label'],
-                'clase': colores.get(info['tipo'], 'bg-dark text-white'),
-                'borrable': info['tipo'] != 'FESTIVO'
+                'clase': colores.get(tipo, 'bg-dark text-white'),
+                'borrable': not info.get('es_oficial', False) and id_evento is not None
             })
+            
+            # Incrementar contador por tipo
+            conteos = resumen_anual[nombre_mes]['conteos']
+            conteos[tipo] = conteos.get(tipo, 0) + 1
 
         registros = {r.fecha: r for r in RegistroDiario.objects.filter(fecha__year=año, fecha__month=mes)}
         semanas = []
@@ -83,12 +95,15 @@ class CalendarioService:
                     'total_str': HorarioService.decimal_a_hhmm(total_dia) if total_dia > 0 else "",
                     'clase_evento': colores.get(ev['tipo'], 'bg-white') if ev else 'bg-white',
                     'tipo_dia': ev['label'] if ev else "",
+                    'tipo_raw': ev['tipo'] if ev else "",
                     'descripcion': ev['desc'] if ev else "",
+                    'es_oficial': ev.get('es_oficial', False) if ev else False,
                 })
             semanas.append(dias_semana)
             
         return {
             'semanas': semanas, 
-            'eventos_organizados': organizado, 
-            'tipos_opciones': EventoCalendario.TIPO_CHOICES
+            'resumen_anual': resumen_anual, 
+            'tipos_opciones': EventoCalendario.TIPO_CHOICES,
+            'colores': colores
         }
