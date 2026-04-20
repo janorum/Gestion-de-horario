@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm" id="pills-tab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#base" type="button">Horario Base</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#especiales" type="button">Periodos Especiales</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="pills-tabContent">
+    <div class="tab-pane fade show active" id="base">
+        {% include "opciones/form_config.html" with h_base=horarios_base c=config d_oblig=dias_obligatorios d_tele=dias_teletrabajo es_base=True %}
+    </div>
+
+    <div class="tab-pane fade" id="especiales">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-primary mb-0">Gestión de Periodos Anuales</h5>
+            <button class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevoEspecial">+ Añadir Periodo</button>
+        </div>
+
+        <div class="accordion" id="accordionEspeciales">
+            {% for e in especiales %}
+            <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#esp_{{ e.id }}">
+                        <div class="d-flex w-100 justify-content-between align-items-center pe-3">
+                            <span class="fw-bold text-primary"><i class="bi bi-calendar-check me-2"></i> {{ e.nombre }}</span>
+                            <span class="badge bg-light text-dark border">{{ e.dia_inicio }}/{{ e.mes_inicio }} al {{ e.dia_fin }}/{{ e.mes_fin }}</span>
+                        </div>
+                    </button>
+                </h2>
+                <div id="esp_{{ e.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionEspeciales">
+                    <div class="accordion-body bg-light">
+                        {% include "opciones/form_config.html" with h_base=e.detalles_dias.all c=e d_oblig=e.get_dias_list_oblig d_tele=e.get_dias_list_tele es_base=False especial_id=e.id %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalNuevoEspecial" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white">
+                    <h6 class="modal-title fw-bold">Nuevo Periodo Especial</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="x-small text-uppercase fw-bold">Nombre</label>
+                        <input type="text" name="nombre_especial" class="form-control" placeholder="Ej: Navidad" required>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="x-small fw-bold">Inicio</label><input type="date" name="fecha_inicio" class="form-control" required></div>
+                        <div class="col-6"><label class="x-small fw-bold">Fin</label><input type="date" name="fecha_fin" class="form-control" required></div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="submit" name="crear_especial" class="btn btn-primary w-100 fw-bold">CONTINUAR CONFIGURACIÓN</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .x-small { font-size: 0.65rem; font-weight: 800; text-uppercase; }
+    .nav-pills .nav-link.active { background-color: #0d6efd; }
+    .accordion-button:not(.collapsed) { background-color: #f8f9fa; color: #0d6efd; box-shadow: none; }
+</style>
+{% endblock %}

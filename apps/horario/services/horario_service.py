@@ -2,7 +2,7 @@ from datetime import time, date, timedelta
 from typing import Optional, Dict, Any, Union
 
 class HorarioService:
-    """Servicio centrado exclusivamente en cálculos de horas y jornadas semanales."""
+    """Servicio centrado exclusivamente en cálculos de horas y jornadas semanales con soporte multiusuario."""
 
     @staticmethod
     def hhmm_a_decimal(hora: Union[time, str, None]) -> float:
@@ -29,14 +29,19 @@ class HorarioService:
 
     @classmethod
     def calcular_total_dia(cls, registro) -> float:
+        if not registro:
+            return 0.0
         h_m = max(0, cls.hhmm_a_decimal(registro.m_out) - cls.hhmm_a_decimal(registro.m_in))
         h_t = max(0, cls.hhmm_a_decimal(registro.t_out) - cls.hhmm_a_decimal(registro.t_in))
         return h_m + h_t
 
     @classmethod
-    def obtener_objetivo_semanal(cls) -> float:
+    def obtener_objetivo_semanal(cls, usuario) -> float:
+        """Calcula el objetivo de horas según la reducción de jornada del usuario."""
         from apps.horario.models import ReduccionHijos
-        config_red, _ = ReduccionHijos.objects.get_or_create(id=1)
+        # Obtenemos o creamos la configuración específica para este usuario
+        config_red, _ = ReduccionHijos.objects.get_or_create(usuario=usuario)
+        
         base_semanal = 37.5 
         if config_red.activa:
             reduccion = base_semanal * (config_red.porcentaje / 100)
@@ -44,7 +49,8 @@ class HorarioService:
         return base_semanal
 
     @classmethod
-    def obtener_datos_semana(cls, fecha_referencia: date) -> Dict[str, Any]:
+    def obtener_datos_semana(cls, fecha_referencia: date, usuario) -> Dict[str, Any]:
+        """Recupera y calcula todos los datos de la semana para un usuario específico."""
         from apps.horario.models import RegistroDiario
 
         lunes = fecha_referencia - timedelta(days=fecha_referencia.weekday())
@@ -54,7 +60,12 @@ class HorarioService:
 
         for i in range(5):
             fecha_dia = lunes + timedelta(days=i)
-            reg, _ = RegistroDiario.objects.get_or_create(fecha=fecha_dia)
+            # Aseguramos que el registro pertenezca al usuario logueado
+            reg, _ = RegistroDiario.objects.get_or_create(
+                fecha=fecha_dia, 
+                usuario=usuario
+            )
+            
             h_m = max(0, cls.hhmm_a_decimal(reg.m_out) - cls.hhmm_a_decimal(reg.m_in))
             h_t = max(0, cls.hhmm_a_decimal(reg.t_out) - cls.hhmm_a_decimal(reg.t_in))
             totales_m += h_m
@@ -69,7 +80,7 @@ class HorarioService:
                 'total_dia_str': cls.decimal_a_hhmm(h_m + h_t)
             })
 
-        objetivo = cls.obtener_objetivo_semanal()
+        objetivo = cls.obtener_objetivo_semanal(usuario)
         total_sem = totales_m + totales_t
         
         return {

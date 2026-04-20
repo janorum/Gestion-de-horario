@@ -4,8 +4,12 @@ from . import views
 app_name = 'calendario'
 
 urlpatterns = [
-    # Cambiamos el name a 'ver_calendario' para que coincida con el template base
-    path('', views.vista_calendario, name='ver_calendario'),
-    path('guardar/', views.api_guardar_evento, name='guardar_evento'),
-    path('borrar/<int:id>/', views.api_borrar_evento, name='borrar_evento'),
+    # Cambiamos vista_calendario por CalendarioView.as_view()
+    path('', views.CalendarioView.as_view(), name='ver_calendario'),
+    
+    # Cambiamos api_guardar_evento por GuardarEventoView.as_view()
+    path('guardar/', views.GuardarEventoView.as_view(), name='guardar_evento'),
+    
+    # Cambiamos api_borrar_evento por BorrarEventoView.as_view()
+    path('borrar/<int:id>/', views.BorrarEventoView.as_view(), name='borrar_evento'),
 ]

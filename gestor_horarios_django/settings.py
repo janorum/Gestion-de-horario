@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     # Tus aplicaciones (usando la ruta absoluta para evitar conflictos de labels)
     'apps.horario.apps.HorarioConfig',
     'apps.calendario',
+    'apps.opciones'
 ]
 
 MIDDLEWARE = [
@@ -96,3 +97,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # 7. Tipo de clave primaria por defecto
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# gestor_horarios_django/settings.py
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'calendario:ver_calendario' # O 'horario:ver_horario' según prefieras
+LOGOUT_REDIRECT_URL = 'login'

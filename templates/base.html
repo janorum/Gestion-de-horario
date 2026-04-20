@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Gestor de Horarios{% endblock %}</title>
+    <title>{% block title %}GESTOR PRO{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         :root { --primary-color: #0d6efd; --bg-color: #f4f7f9; }
         body { background-color: var(--bg-color); font-family: 'Inter', -apple-system, sans-serif; }
@@ -27,28 +28,53 @@
 </head>
 <body>
 
-<nav class="navbar navbar-light mb-4">
+<nav class="navbar navbar-expand-lg navbar-light mb-4 shadow-sm">
     <div class="container">
-        <a class="navbar-brand" href="{% url 'horario:horario_semanal' %}">
-            <i class="bi bi-clock-history"></i> GESTOR DE HORARIOS
+        <a class="navbar-brand" href="{% if user.is_authenticated %}{% url 'horario:ver_horario' %}{% else %}{% url 'login' %}{% endif %}">
+            <i class="bi bi-clock-history"></i> GESTOR PRO
         </a>
+        
+        <div class="ms-auto d-flex align-items-center">
+            {% if user.is_authenticated %}
+                <span class="small fw-bold text-muted text-uppercase me-3 d-none d-sm-inline">
+                    <i class="bi bi-person-circle"></i> {{ user.username }}
+                </span>
+                <form action="{% url 'logout' %}" method="post" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger fw-bold">
+                        <i class="bi bi-box-arrow-right"></i> SALIR
+                    </button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-sm btn-primary fw-bold px-4">ENTRAR</a>
+            {% endif %}
+        </div>
     </div>
 </nav>
 
 <div class="container">
+    {% if user.is_authenticated %}
     <ul class="nav nav-tabs mb-4" id="mainTabs">
         <li class="nav-item">
             <a class="nav-link {% if request.resolver_match.app_name == 'horario' %}active{% endif %}" 
-               href="{% url 'horario:horario_semanal' %}">Horario</a>
+               href="{% url 'horario:ver_horario' %}">
+               <i class="bi bi-calendar3-range"></i> Horario
+            </a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if request.resolver_match.app_name == 'calendario' %}active{% endif %}" 
-               href="{% url 'calendario:ver_calendario' %}">Calendario</a>
+               href="{% url 'calendario:ver_calendario' %}">
+               <i class="bi bi-calendar-event"></i> Calendario
+            </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="#">Opciones</a>
+            <a class="nav-link {% if request.resolver_match.app_name == 'opciones' %}active{% endif %}" 
+               href="{% url 'opciones:main' %}">
+                <i class="bi bi-gear"></i> Opciones
+            </a>
         </li>
     </ul>
+    {% endif %}
 
     {% block content %}{% endblock %}
 </div>
