@@ -1,24 +1,50 @@
 {% extends "base.html" %}
 
 {% block content %}
-<ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm" id="pills-tab" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#base" type="button">Horario Base</button>
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm border" id="pills-tab" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#tab-base">
+            <i class="bi bi-clock-history me-1"></i> Horario Base
+        </button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#especiales" type="button">Periodos Especiales</button>
+    <li class="nav-item">
+        <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tab-especiales">
+            <i class="bi bi-calendar-event me-1"></i> Periodos Especiales
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tab-saldo">
+            <i class="bi bi-calendar-check me-1"></i> Vacaciones y Asuntos
+        </button>
+    </li>
+    <li class="nav-item ms-auto">
+        <button class="nav-link fw-bold text-secondary" data-bs-toggle="pill" data-bs-target="#tab-cuenta">
+            <i class="bi bi-person-circle me-1"></i> Mi Cuenta
+        </button>
     </li>
 </ul>
 
 <div class="tab-content" id="pills-tabContent">
-    <div class="tab-pane fade show active" id="base">
+    
+    <div class="tab-pane fade show active" id="tab-base">
         {% include "opciones/form_config.html" with h_base=horarios_base c=config d_oblig=dias_obligatorios d_tele=dias_teletrabajo es_base=True %}
     </div>
 
-    <div class="tab-pane fade" id="especiales">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold text-primary mb-0">Gestión de Periodos Anuales</h5>
-            <button class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevoEspecial">+ Añadir Periodo</button>
+    <div class="tab-pane fade" id="tab-especiales">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="fw-bold text-primary mb-0"><i class="bi bi-calendar-plus me-2"></i> Gestión de Periodos Anuales</h5>
+            <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoEspecial">
+                <i class="bi bi-plus-lg"></i> Añadir Nuevo Periodo
+            </button>
         </div>
 
         <div class="accordion" id="accordionEspeciales">
@@ -27,50 +53,266 @@
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#esp_{{ e.id }}">
                         <div class="d-flex w-100 justify-content-between align-items-center pe-3">
-                            <span class="fw-bold text-primary"><i class="bi bi-calendar-check me-2"></i> {{ e.nombre }}</span>
-                            <span class="badge bg-light text-dark border">{{ e.dia_inicio }}/{{ e.mes_inicio }} al {{ e.dia_fin }}/{{ e.mes_fin }}</span>
+                            <div>
+                                <span class="fw-bold text-primary fs-5">{{ e.nombre }}</span>
+                                <div class="small text-muted">Configuración personalizada anual</div>
+                            </div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+                                <i class="bi bi-calendar3 me-1"></i> {{ e.dia_inicio }}/{{ e.mes_inicio }} al {{ e.dia_fin }}/{{ e.mes_fin }}
+                            </span>
                         </div>
                     </button>
                 </h2>
                 <div id="esp_{{ e.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionEspeciales">
-                    <div class="accordion-body bg-light">
+                    <div class="accordion-body bg-light p-4">
                         {% include "opciones/form_config.html" with h_base=e.detalles_dias.all c=e d_oblig=e.get_dias_list_oblig d_tele=e.get_dias_list_tele es_base=False especial_id=e.id %}
                     </div>
                 </div>
             </div>
+            {% empty %}
+            <div class="text-center py-5 bg-white rounded shadow-sm">
+                <i class="bi bi-calendar-x display-1 text-light"></i>
+                <p class="text-muted mt-3">No hay periodos especiales configurados.</p>
+            </div>
             {% endfor %}
         </div>
     </div>
-</div>
 
-<div class="modal fade" id="modalNuevoEspecial" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content border-0">
+    <div class="tab-pane fade" id="tab-saldo">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-calculator me-2"></i> Configuración de Saldo 2026</h5>
+                        <form method="POST">
+                            {% csrf_token %}
+                            <div class="mb-4">
+                                <label class="small fw-bold text-uppercase text-muted mb-2 d-block">Días de Vacaciones Anuales</label>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light border-0"><i class="bi bi-sun"></i></span>
+                                    <input type="number" name="vac_totales" class="form-control bg-light border-0 fw-bold" value="{{ saldo.vacaciones_totales }}">
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="small fw-bold text-uppercase text-muted mb-2 d-block">Días de Asuntos Propios</label>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light border-0"><i class="bi bi-briefcase"></i></span>
+                                    <input type="number" name="asu_totales" class="form-control bg-light border-0 fw-bold" value="{{ saldo.asuntos_propios_totales }}">
+                                </div>
+                            </div>
+                            <button type="submit" name="update_saldo" class="btn btn-primary w-100 fw-bold py-3">
+                                <i class="bi bi-check-circle me-2"></i> ACTUALIZAR SALDO ANUAL
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 bg-primary text-white h-100 d-flex align-items-center justify-content-center p-5 text-center">
+                    <div>
+                        <div class="display-1 fw-bold mb-0">{{ saldo.vacaciones_totales|add:saldo.asuntos_propios_totales }}</div>
+                        <div class="h5 fw-light opacity-75">Días Totales Disponibles</div>
+                        <hr class="my-4 opacity-25">
+                        <div class="d-flex justify-content-center gap-4">
+                            <div><div class="h3 mb-0 fw-bold">{{ saldo.vacaciones_totales }}</div><small class="opacity-75">Vacaciones</small></div>
+                            <div class="vr opacity-25"></div>
+                            <div><div class="h3 mb-0 fw-bold">{{ saldo.asuntos_propios_totales }}</div><small class="opacity-75">Asuntos</small></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-cuenta">
+        <div class="card shadow-sm border-0">
             <form method="POST">
                 {% csrf_token %}
-                <div class="modal-header bg-primary text-white">
-                    <h6 class="modal-title fw-bold">Nuevo Periodo Especial</h6>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="x-small text-uppercase fw-bold">Nombre</label>
-                        <input type="text" name="nombre_especial" class="form-control" placeholder="Ej: Navidad" required>
+                <div class="card-body p-4 p-lg-5">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-person-gear me-2"></i> Configuración de Cuenta</h5>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="x-small fw-bold text-muted text-uppercase">Nombre</label>
+                            <input type="text" name="first_name" class="form-control bg-light border-0 py-2" value="{{ user.first_name }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="x-small fw-bold text-muted text-uppercase">Apellidos</label>
+                            <input type="text" name="last_name" class="form-control bg-light border-0 py-2" value="{{ user.last_name }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="x-small fw-bold text-muted text-uppercase">Correo Electrónico</label>
+                            <input type="email" name="email" class="form-control bg-light border-0 py-2" value="{{ user.email }}">
+                        </div>
+                        
+                        <div class="col-12 mt-5">
+                            <h6 class="fw-bold text-danger text-uppercase x-small mb-3">Seguridad y Acceso</h6>
+                            <div class="row g-3 p-3 bg-light rounded-3">
+                                <div class="col-md-6">
+                                    <label class="x-small fw-bold text-muted text-uppercase">Nueva Contraseña</label>
+                                    <input type="password" name="pass1" class="form-control border-0" placeholder="Dejar en blanco para no cambiar">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="x-small fw-bold text-muted text-uppercase">Confirmar Contraseña</label>
+                                    <input type="password" name="pass2" class="form-control border-0" placeholder="Repetir nueva contraseña">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="row g-2">
-                        <div class="col-6"><label class="x-small fw-bold">Inicio</label><input type="date" name="fecha_inicio" class="form-control" required></div>
-                        <div class="col-6"><label class="x-small fw-bold">Fin</label><input type="date" name="fecha_fin" class="form-control" required></div>
+                    <div class="mt-5 text-end">
+                        <button type="submit" name="update_profile" class="btn btn-dark fw-bold px-5 py-2">
+                            <i class="bi bi-shield-check me-2"></i> GUARDAR CAMBIOS DE PERFIL
+                        </button>
                     </div>
                 </div>
-                <div class="modal-footer"><button type="submit" name="crear_especial" class="btn btn-primary w-100 fw-bold">CONTINUAR CONFIGURACIÓN</button></div>
             </form>
         </div>
     </div>
 </div>
 
+<div class="modal fade" id="modalNuevoEspecial" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h6 class="modal-title fw-bold">Crear Nuevo Periodo Especial Anual</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="x-small text-uppercase fw-bold text-muted">Nombre Descriptivo</label>
+                        <input type="text" name="nombre_especial" class="form-control border-0 bg-light" placeholder="Ej: Jornada de Verano" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="x-small text-uppercase fw-bold text-muted">Fecha de Inicio</label>
+                            <input type="date" name="fecha_inicio" class="form-control border-0 bg-light" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="x-small text-uppercase fw-bold text-muted">Fecha de Fin</label>
+                            <input type="date" name="fecha_fin" class="form-control border-0 bg-light" required>
+                        </div>
+                    </div>
+                    <div class="mt-3 p-3 bg-warning bg-opacity-10 rounded-3 border border-warning border-opacity-25">
+                        <small class="text-warning-emphasis fw-bold"><i class="bi bi-info-circle me-1"></i> Nota:</small>
+                        <p class="x-small text-muted mb-0">Una vez creado, se generará la tabla horaria L-V dentro de "Periodos Especiales".</p>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" name="crear_especial" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
+                        <i class="bi bi-calendar-check-fill me-2"></i> REGISTRAR Y CONFIGURAR
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. UTILIDADES DE TIEMPO
+        function hhmmToDec(t) {
+            if (!t || !t.includes(':')) return parseFloat(t) || 0;
+            const [h, m] = t.split(':').map(Number);
+            return h + (m / 60);
+        }
+
+        function decToHHMM(d) {
+            const val = parseFloat(d) || 0;
+            if (val <= 0) return "00:00";
+            const h = Math.floor(val);
+            const m = Math.round((val - h) * 60);
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        }
+
+        // 2. GESTIÓN DE TARDE OBLIGATORIA
+        function actualizarEstadoTarde(rowId, isChecked, container = document) {
+            const inputIn = container.querySelector(`input[name="t_in_${rowId}"]`);
+            const inputOut = container.querySelector(`input[name="t_out_${rowId}"]`);
+            if (inputIn && inputOut) {
+                if (!isChecked) {
+                    if (inputIn.value) inputIn.setAttribute('data-original', inputIn.value);
+                    if (inputOut.value) inputOut.setAttribute('data-original', inputOut.value);
+                    inputIn.disabled = inputOut.disabled = true;
+                    inputIn.value = inputOut.value = ""; 
+                    inputIn.style.opacity = inputOut.style.opacity = "0.4";
+                } else {
+                    inputIn.disabled = inputOut.disabled = false;
+                    inputIn.style.opacity = inputOut.style.opacity = "1";
+                    const vIn = inputIn.getAttribute('data-original');
+                    const vOut = inputOut.getAttribute('data-original');
+                    if (vIn) inputIn.value = vIn;
+                    if (vOut) inputOut.value = vOut;
+                }
+            }
+        }
+
+        // 3. MÁSCARA INTELIGENTE HH:MM
+        function initTimeMasks() {
+            document.querySelectorAll('.input-mask-time').forEach(input => {
+                // Si el valor es decimal, convertir a HH:MM al cargar
+                if (input.value && !input.value.includes(':')) {
+                    input.value = decToHHMM(input.value);
+                }
+
+                input.addEventListener('input', function() {
+                    let val = this.value.replace(/[^0-9]/g, '');
+                    if (val.length > 4) val = val.substring(0, 4);
+                    if (val.length > 2) {
+                        this.value = val.substring(0, 2) + ':' + val.substring(2);
+                    } else {
+                        this.value = val;
+                    }
+                });
+
+                input.addEventListener('blur', function() {
+                    let val = this.value.trim();
+                    if (!val) { this.value = "00:00"; return; }
+                    if (!val.includes(':') && !isNaN(val)) {
+                        val = val.padStart(2, '0') + ':00';
+                    } else if (val.includes(':')) {
+                        let [h, m] = val.split(':');
+                        h = h.padStart(2, '0');
+                        m = (m || '0').padEnd(2, '0').substring(0, 2);
+                        if (parseInt(m) > 59) m = '59';
+                        val = `${h}:${m}`;
+                    }
+                    this.value = val;
+                });
+            });
+        }
+
+        function initTardeCheckboxes() {
+            document.querySelectorAll('input[name="dias_obligatorios"]').forEach(checkbox => {
+                const container = checkbox.closest('form');
+                actualizarEstadoTarde(checkbox.value, checkbox.checked, container);
+                checkbox.addEventListener('change', function() {
+                    actualizarEstadoTarde(this.value, this.checked, container);
+                });
+            });
+        }
+
+        // Inicialización general
+        initTimeMasks();
+        initTardeCheckboxes();
+
+        // Reinicializar cuando se abren los acordiones de periodos especiales
+        const accordion = document.getElementById('accordionEspeciales');
+        if (accordion) {
+            accordion.addEventListener('shown.bs.collapse', function() {
+                initTimeMasks();
+                initTardeCheckboxes();
+            });
+        }
+    });
+</script>
+
 <style>
-    .x-small { font-size: 0.65rem; font-weight: 800; text-uppercase; }
-    .nav-pills .nav-link.active { background-color: #0d6efd; }
-    .accordion-button:not(.collapsed) { background-color: #f8f9fa; color: #0d6efd; box-shadow: none; }
+    .x-small { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; }
+    .nav-pills .nav-link { color: #6c757d; border: 1px solid transparent; margin-right: 5px; transition: all 0.3s ease; }
+    .nav-pills .nav-link.active { background-color: #0d6efd; box-shadow: 0 4px 10px rgba(13, 110, 253, 0.2); }
+    .accordion-button:not(.collapsed) { background-color: #f8fbff; color: #0d6efd; box-shadow: none; }
+    .form-control:focus { box-shadow: none; background-color: #fff !important; border: 1px solid #0d6efd !important; }
+    input:disabled { cursor: not-allowed; border-style: dashed !important; background-color: #e9ecef !important; }
 </style>
 {% endblock %}

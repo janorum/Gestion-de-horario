@@ -1,37 +1,75 @@
-<form method="POST">
+<form method="POST" class="config-form">
     {% csrf_token %}
     {% if not es_base %}<input type="hidden" name="especial_id" value="{{ especial_id }}">{% endif %}
     
     <div class="row g-4">
         <div class="col-12">
-            <div class="card border-0 shadow-sm">
+            <div class="card shadow-sm border-0 overflow-hidden">
                 <div class="card-header bg-white py-3 border-bottom-0">
                     <h6 class="mb-0 fw-bold text-primary text-uppercase small"><i class="bi bi-calendar-week"></i> Horario Detallado</h6>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table align-middle mb-0">
-                            <thead class="table-light x-small text-muted text-uppercase">
-                                <tr>
-                                    <th class="ps-4">Día</th>
-                                    <th>Mañana Entrada</th>
-                                    <th>Mañana Salida</th>
-                                    <th>Tarde Entrada</th>
-                                    <th>Tarde Salida</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for h in h_base %}
-                                <tr>
-                                    <td class="ps-4 fw-bold text-secondary">{{ h.get_dia_semana_display }}</td>
-                                    <td><input type="time" name="m_in_{{ h.dia_semana }}" class="form-control form-control-sm border-0 bg-light" value="{{ h.m_in|time:'H:i' }}"></td>
-                                    <td><input type="time" name="m_out_{{ h.dia_semana }}" class="form-control form-control-sm border-0 bg-light" value="{{ h.m_out|time:'H:i' }}"></td>
-                                    <td><input type="time" name="t_in_{{ h.dia_semana }}" class="form-control form-control-sm border-0 bg-light" value="{{ h.t_in|time:'H:i' }}"></td>
-                                    <td><input type="time" name="t_out_{{ h.dia_semana }}" class="form-control form-control-sm border-0 bg-light" value="{{ h.t_out|time:'H:i' }}"></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle text-center">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-start ps-4 py-3">Día</th>
+                                <th>Entrada M</th><th>Salida M</th>
+                                <th class="bg-light text-primary">Subtotal M</th>
+                                <th>Entrada T</th><th>Salida T</th>
+                                <th class="bg-light text-primary">Subtotal T</th>
+                                <th class="pe-4">Total Diario</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in h_base %}
+                            <tr class="row-dia" data-dia="{{ h.dia_semana }}">
+                                <td class="text-start ps-4">
+                                    <div class="fw-bold text-dark">{{ h.get_dia_semana_display }}</div>
+                                </td>
+                                <td><input type="time" name="m_in_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time" value="{{ h.m_in|time:'H:i' }}"></td>
+                                <td><input type="time" name="m_out_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time" value="{{ h.m_out|time:'H:i' }}"></td>
+                                <td class="bg-light fw-bold text-primary subtotal-m-celda">00:00</td>
+                                <td><input type="time" name="t_in_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time input-tarde" value="{{ h.t_in|time:'H:i' }}"></td>
+                                <td><input type="time" name="t_out_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time input-tarde" value="{{ h.t_out|time:'H:i' }}"></td>
+                                <td class="bg-light fw-bold text-primary subtotal-t-celda">00:00</td>
+                                <td class="pe-4">
+                                    <span class="badge bg-dark fs-6 total-dia-celda">00:00</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light border-top">
+                            <tr class="fw-bold text-dark">
+                                <td colspan="3" class="text-end py-3">TOTALES CONFIGURADOS:</td>
+                                <td class="text-primary total-manana">00:00</td>
+                                <td colspan="2"></td>
+                                <td class="text-primary total-tarde">00:00</td>
+                                <td class="pe-4 fs-5 total-semanal">00:00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="alertas-restricciones mt-2"></div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold text-success text-uppercase x-small mb-3"><i class="bi bi-clock-fill"></i> Máx. Horas Mañana</h6>
+                    <div class="mb-3">
+                        <label class="x-small text-muted text-uppercase fw-bold">Jornada Presencial</label>
+                        <input type="text" class="form-control form-control-sm border-0 bg-light input-mask-time" 
+                               data-real-name="max_presencial"
+                               value="{% if es_base %}{{ c.max_horas_manana_presencial }}{% else %}{{ c.max_presencial }}{% endif %}" placeholder="00:00">
+                        <input type="hidden" name="max_presencial" value="{% if es_base %}{{ c.max_horas_manana_presencial }}{% else %}{{ c.max_presencial }}{% endif %}">
+                    </div>
+                    <div>
+                        <label class="x-small text-muted text-uppercase fw-bold">Días Teletrabajo</label>
+                        <input type="text" class="form-control form-control-sm border-0 bg-light input-mask-time" 
+                               data-real-name="max_teletrabajo"
+                               value="{% if es_base %}{{ c.max_horas_manana_teletrabajo }}{% else %}{{ c.max_teletrabajo }}{% endif %}" placeholder="00:00">
+                        <input type="hidden" name="max_teletrabajo" value="{% if es_base %}{{ c.max_horas_manana_teletrabajo }}{% else %}{{ c.max_teletrabajo }}{% endif %}">
                     </div>
                 </div>
             </div>
@@ -42,17 +80,12 @@
                 <div class="card-body">
                     <h6 class="fw-bold text-primary text-uppercase x-small mb-3"><i class="bi bi-toggles"></i> Tarde / Teletrabajo</h6>
                     <div class="bg-light rounded-3 p-2">
-                        <div class="row g-0 mb-2 x-small text-muted text-center fw-bold text-uppercase">
-                            <div class="col-6 text-start ps-2">Día</div>
-                            <div class="col-3">Tarde</div>
-                            <div class="col-3">Tele</div>
-                        </div>
                         {% for id, nombre in nombres_dias %}
                         <div class="row g-0 align-items-center mb-2">
                             <div class="col-6 small ps-2">{{ nombre }}</div>
                             <div class="col-3 text-center">
                                 <div class="form-check form-switch d-inline-block">
-                                    <input class="form-check-input" type="checkbox" name="dias_obligatorios" value="{{ id }}" {% if id in d_oblig %}checked{% endif %}>
+                                    <input class="form-check-input check-oblig" type="checkbox" name="dias_obligatorios" value="{{ id }}" {% if id in d_oblig %}checked{% endif %}>
                                 </div>
                             </div>
                             <div class="col-3 text-center">
@@ -62,30 +95,6 @@
                             </div>
                         </div>
                         {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <h6 class="fw-bold text-success text-uppercase x-small mb-3"><i class="bi bi-clock-fill"></i> Máx. Horas Mañana</h6>
-                    <div class="mb-3">
-                        <label class="x-small text-muted text-uppercase fw-bold">Jornada Presencial</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" step="0.5" name="max_presencial" class="form-control border-0 bg-light" 
-                                   value="{% if es_base %}{{ c.max_horas_manana_presencial }}{% else %}{{ c.max_presencial }}{% endif %}">
-                            <span class="input-group-text border-0 bg-light">h</span>
-                        </div>
-                    </div>
-                    <div class="mb-0">
-                        <label class="x-small text-muted text-uppercase fw-bold">Días Teletrabajo</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" step="0.5" name="max_teletrabajo" class="form-control border-0 bg-light" 
-                                   value="{% if es_base %}{{ c.max_horas_manana_teletrabajo }}{% else %}{{ c.max_teletrabajo }}{% endif %}">
-                            <span class="input-group-text border-0 bg-light">h</span>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -106,7 +115,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="x-small text-muted text-uppercase fw-bold">Intervalo entre jornadas</label>
+                        <label class="x-small text-muted text-uppercase fw-bold">Intervalo descanso</label>
                         <div class="input-group input-group-sm">
                             <input type="number" name="minutos_descanso" class="form-control border-0 bg-light text-center fw-bold" value="{{ c.minutos_descanso }}">
                             <span class="input-group-text border-0 bg-light">min</span>
@@ -122,26 +131,128 @@
                     <div class="d-flex align-items-center mb-2 mb-md-0">
                         <div class="me-4">
                             <label class="x-small text-uppercase opacity-75 fw-bold d-block">Horas Semanales</label>
-                            <input type="number" step="0.1" name="horas_semanales" class="form-control form-control-sm fw-bold border-0 text-center" style="width: 100px;" 
-                                   value="{% if es_base %}{{ c.horas_semanales_estandar }}{% else %}{{ c.horas_semanales }}{% endif %}">
+                            <input type="text" class="form-control form-control-sm fw-bold border-0 text-center input-mask-time text-dark bg-white rounded" style="width: 100px;" 
+                                   data-real-name="horas_semanales"
+                                   value="{% if es_base %}{{ c.horas_semanales_estandar }}{% else %}{{ c.horas_semanales }}{% endif %}" placeholder="00:00">
+                            <input type="hidden" name="horas_semanales" value="{% if es_base %}{{ c.horas_semanales_estandar }}{% else %}{{ c.horas_semanales }}{% endif %}">
                         </div>
                         <div>
                             <label class="x-small text-uppercase opacity-75 fw-bold d-block">Mín. Horas Tarde</label>
-                            <input type="number" step="0.5" name="min_horas_tarde" class="form-control form-control-sm border-0 bg-white bg-opacity-25 text-white text-center" style="width: 100px;" value="{{ c.min_horas_tarde }}">
+                            <input type="text" class="form-control form-control-sm fw-bold border-0 text-center input-mask-time text-dark bg-white rounded" style="width: 100px;" 
+                                   data-real-name="min_horas_tarde"
+                                   value="{{ c.min_horas_tarde|default:'0.0' }}" placeholder="00:00">
+                            <input type="hidden" name="min_horas_tarde" value="{{ c.min_horas_tarde|default:'0.0' }}">
                         </div>
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" name="{% if es_base %}guardar_base{% else %}actualizar_especial{% endif %}" class="btn btn-light fw-bold px-4">
                             <i class="bi bi-save-fill"></i> GUARDAR CONFIGURACIÓN
                         </button>
-                        {% if not es_base %}
-                        <button type="submit" name="borrar_especial" class="btn btn-outline-light border-0 fw-bold" onclick="return confirm('¿Eliminar este periodo?')">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </form>
+
+<script>
+(function() {
+    function hhmmToDec(t) {
+        if (!t || !String(t).includes(':')) return parseFloat(t) || 0;
+        const [h, m] = t.split(':').map(Number);
+        return h + (m / 60);
+    }
+
+    function decToHHMM(d) {
+        const val = parseFloat(d) || 0;
+        if (val <= 0) return "00:00";
+        const h = Math.floor(val);
+        const m = Math.round((val - h) * 60);
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    // GESTIÓN DE INPUTS CON MÁSCARA Y CAMPOS OCULTOS
+    document.querySelectorAll('.input-mask-time').forEach(input => {
+        const realName = input.dataset.realName;
+        // Buscamos el input hidden que acompaña a este campo visual
+        const hidden = input.closest('.mb-3, .me-4, div, .card-body').querySelector(`input[name="${realName}"]`);
+        
+        // Al cargar: Si el valor es decimal, lo convertimos a HH:MM para el usuario
+        if (hidden && hidden.value && !hidden.value.includes(':')) {
+            input.value = decToHHMM(hidden.value);
+        }
+
+        input.addEventListener('input', function() {
+            let val = this.value.replace(/[^0-9]/g, '');
+            if (val.length > 4) val = val.substring(0, 4);
+            if (val.length > 2) {
+                this.value = val.substring(0, 2) + ':' + val.substring(2);
+            } else {
+                this.value = val;
+            }
+        });
+
+        input.addEventListener('blur', function() {
+            let val = this.value.trim();
+            if (!val) val = "00:00";
+            
+            // Autocompletar si es necesario
+            if (!val.includes(':') && !isNaN(val)) {
+                val = val.padStart(2, '0') + ':00';
+            } else if (val.includes(':')) {
+                let [h, m] = val.split(':');
+                h = h.padStart(2, '0');
+                m = (m || '0').padEnd(2, '0').substring(0, 2);
+                if (parseInt(m) > 59) m = '59';
+                val = `${h}:${m}`;
+            }
+            this.value = val;
+
+            // ACTUALIZACIÓN CRÍTICA: Guardamos el decimal en el campo oculto
+            if (hidden) {
+                hidden.value = hhmmToDec(val);
+            }
+            calcularConfig(this.closest('form'));
+        });
+    });
+
+    function calcularConfig(form) {
+        let totalM = 0, totalT = 0;
+        form.querySelectorAll('.row-dia').forEach(row => {
+            const id = row.dataset.dia;
+            const mi = row.querySelector(`[name="m_in_${id}"]`);
+            const mo = row.querySelector(`[name="m_out_${id}"]`);
+            const ti = row.querySelector(`[name="t_in_${id}"]`);
+            const to = row.querySelector(`[name="t_out_${id}"]`);
+            const oblig = form.querySelector(`.check-oblig[value="${id}"]`).checked;
+
+            if (!oblig) {
+                ti.disabled = to.disabled = true;
+                ti.value = ""; to.value = "";
+                ti.parentElement.style.opacity = "0.4";
+            } else {
+                ti.disabled = to.disabled = false;
+                ti.parentElement.style.opacity = "1";
+            }
+
+            const hM = Math.max(0, hhmmToDec(mo.value) - hhmmToDec(mi.value));
+            const hT = Math.max(0, hhmmToDec(to.value) - hhmmToDec(ti.value));
+
+            row.querySelector('.subtotal-m-celda').innerText = decToHHMM(hM);
+            row.querySelector('.subtotal-t-celda').innerText = decToHHMM(hT);
+            row.querySelector('.total-dia-celda').innerText = decToHHMM(hM + hT);
+            totalM += hM; totalT += hT;
+        });
+
+        form.querySelector('.total-manana').innerText = decToHHMM(totalM);
+        form.querySelector('.total-tarde').innerText = decToHHMM(totalT);
+        form.querySelector('.total-semanal').innerText = decToHHMM(totalM + totalT);
+    }
+
+    document.querySelectorAll('.config-form').forEach(f => {
+        f.addEventListener('input', () => calcularConfig(f));
+        f.querySelectorAll('.check-oblig').forEach(c => c.addEventListener('change', () => calcularConfig(f)));
+        calcularConfig(f);
+    });
+})();
+</script>

@@ -1,0 +1,41 @@
+<form method="POST">
+    {% csrf_token %}
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Registrar: {{ fecha|date:"l d de F" }}</h5>
+            <small>Configuración aplicada: {{ config.nombre|default:"Horario Base" }}</small>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Entrada Mañana</label>
+                    <input type="time" name="m_in" class="form-control" value="{{ defaults.m_in|time:'H:i' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Salida Mañana</label>
+                    <input type="time" name="m_out" class="form-control" value="{{ defaults.m_out|time:'H:i' }}">
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Entrada Tarde</label>
+                    <input type="time" name="t_in" class="form-control" value="{{ defaults.t_in|time:'H:i' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Salida Tarde</label>
+                    <input type="time" name="t_out" class="form-control" value="{{ defaults.t_out|time:'H:i' }}">
+                </div>
+
+                <div class="col-12 mt-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="teletrabajo" 
+                               {% if fecha.isoweekday in config.get_dias_list_tele %}checked{% endif %}>
+                        <label class="form-check-label">Jornada de Teletrabajo</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-light text-end">
+            <button type="submit" class="btn btn-primary fw-bold">Guardar Jornada</button>
+        </div>
+    </div>
+</form>

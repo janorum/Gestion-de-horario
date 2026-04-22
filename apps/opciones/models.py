@@ -75,3 +75,17 @@ class DiaHorarioEspecial(models.Model):
     class Meta:
         unique_together = ['periodo', 'dia_semana']
         ordering = ['dia_semana']
+
+class SaldoDias(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saldos')
+    anio = models.IntegerField(default=2026)
+    vacaciones_totales = models.IntegerField(default=22)
+    asuntos_propios_totales = models.IntegerField(default=6)
+    
+    # Estos campos se calcularán restando los días ya disfrutados
+    vacaciones_disfrutadas = models.IntegerField(default=0)
+    asuntos_disfrutados = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ['usuario', 'anio']
+        verbose_name = "Saldo de Días"
