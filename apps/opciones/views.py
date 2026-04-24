@@ -68,7 +68,7 @@ class OpcionesMainView(LoginRequiredMixin, View):
                 horas = float(partes[0])
                 minutos = float(partes[1]) if len(partes) > 1 else 0
                 return horas + (minutos / 60)
-            return float(val_str)
+            return float(val_str.replace(',', '.'))
         except (ValueError, TypeError, IndexError):
             return default
 
@@ -107,10 +107,17 @@ class OpcionesMainView(LoginRequiredMixin, View):
         config.horas_semanales_estandar = self._safe_time_to_float(request.POST.get('horas_semanales'), 37.5)
         config.max_hora_manana = request.POST.get('max_hora_manana') or "15:00"
         config.max_hora_tarde = request.POST.get('max_hora_tarde') or "20:00"
+        config.hora_inicio_conteo = request.POST.get('hora_inicio_conteo') or "07:30"
+        
+        # Nuevos campos de horario obligatorio
+        config.oblig_manana_in = request.POST.get('oblig_manana_in') or "09:00"
+        config.oblig_manana_out = request.POST.get('oblig_manana_out') or "14:30"
+        
         config.minutos_descanso = int(request.POST.get('minutos_descanso') or 30)
         config.max_horas_manana_presencial = self._safe_time_to_float(request.POST.get('max_presencial'), 6.0)
         config.max_horas_manana_teletrabajo = self._safe_time_to_float(request.POST.get('max_teletrabajo'), 7.0)
         config.min_horas_tarde = self._safe_time_to_float(request.POST.get('min_horas_tarde'), 1.0)
+        config.max_horas_tarde = self._safe_time_to_float(request.POST.get('max_horas_tarde'), 3.0)
         
         config.dias_obligatorios_tarde = ",".join(request.POST.getlist('dias_obligatorios'))
         config.dias_teletrabajo = ",".join(request.POST.getlist('dias_teletrabajo'))
@@ -141,10 +148,17 @@ class OpcionesMainView(LoginRequiredMixin, View):
             obj.horas_semanales = self._safe_time_to_float(request.POST.get('horas_semanales'), 35.0)
             obj.max_hora_manana = request.POST.get('max_hora_manana') or "15:00"
             obj.max_hora_tarde = request.POST.get('max_hora_tarde') or "20:00"
+            obj.hora_inicio_conteo = request.POST.get('hora_inicio_conteo') or "07:30"
+            
+            # Nuevos campos de horario obligatorio en especial
+            obj.oblig_manana_in = request.POST.get('oblig_manana_in') or "09:00"
+            obj.oblig_manana_out = request.POST.get('oblig_manana_out') or "14:30"
+            
             obj.minutos_descanso = int(request.POST.get('minutos_descanso') or 30)
             obj.max_presencial = self._safe_time_to_float(request.POST.get('max_presencial'), 6.0)
             obj.max_teletrabajo = self._safe_time_to_float(request.POST.get('max_teletrabajo'), 7.0)
             obj.min_horas_tarde = self._safe_time_to_float(request.POST.get('min_horas_tarde'), 1.0)
+            obj.max_horas_tarde = self._safe_time_to_float(request.POST.get('max_horas_tarde'), 3.0)
             obj.dias_obligatorios_tarde = ",".join(request.POST.getlist('dias_obligatorios'))
             obj.dias_teletrabajo = ",".join(request.POST.getlist('dias_teletrabajo'))
             obj.save()

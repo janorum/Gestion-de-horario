@@ -9,7 +9,7 @@
                     <h6 class="mb-0 fw-bold text-primary text-uppercase small"><i class="bi bi-calendar-week"></i> Horario Detallado</h6>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0 align-middle text-center">
+                    <table class="table mb-0 align-middle text-center" id="tabla-horarios">
                         <thead class="table-light">
                             <tr>
                                 <th class="text-start ps-4 py-3">Día</th>
@@ -22,15 +22,15 @@
                         </thead>
                         <tbody>
                             {% for h in h_base %}
-                            <tr class="row-dia" data-dia="{{ h.dia_semana }}">
+                            <tr class="row-dia" data-dia="{{ h.dia_semana }}" data-nombre="{{ h.get_dia_semana_display }}">
                                 <td class="text-start ps-4">
-                                    <div class="fw-bold text-dark">{{ h.get_dia_semana_display }}</div>
+                                    <div class="fw-bold text-dark label-dia">{{ h.get_dia_semana_display }}</div>
                                 </td>
-                                <td><input type="time" name="m_in_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time" value="{{ h.m_in|time:'H:i' }}"></td>
-                                <td><input type="time" name="m_out_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time" value="{{ h.m_out|time:'H:i' }}"></td>
+                                <td><input type="time" name="m_in_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time input-val" value="{{ h.m_in|time:'H:i' }}"></td>
+                                <td><input type="time" name="m_out_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time input-val" value="{{ h.m_out|time:'H:i' }}"></td>
                                 <td class="bg-light fw-bold text-primary subtotal-m-celda">00:00</td>
-                                <td><input type="time" name="t_in_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time input-tarde" value="{{ h.t_in|time:'H:i' }}"></td>
-                                <td><input type="time" name="t_out_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time input-tarde" value="{{ h.t_out|time:'H:i' }}"></td>
+                                <td><input type="time" name="t_in_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time input-tarde input-val" value="{{ h.t_in|time:'H:i' }}"></td>
+                                <td><input type="time" name="t_out_{{ h.dia_semana }}" class="w-100 text-center border-0 bg-transparent input-time input-tarde input-val" value="{{ h.t_out|time:'H:i' }}"></td>
                                 <td class="bg-light fw-bold text-primary subtotal-t-celda">00:00</td>
                                 <td class="pe-4">
                                     <span class="badge bg-dark fs-6 total-dia-celda">00:00</span>
@@ -50,26 +50,40 @@
                     </table>
                 </div>
             </div>
-            <div class="alertas-restricciones mt-2"></div>
+            
+            <div class="alertas-dinamicas mt-3"></div>
         </div>
 
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <h6 class="fw-bold text-success text-uppercase x-small mb-3"><i class="bi bi-clock-fill"></i> Máx. Horas Mañana</h6>
+                    <h6 class="fw-bold text-success text-uppercase x-small mb-3"><i class="bi bi-clock-fill"></i> Máximo de horas permitido</h6>
                     <div class="mb-3">
-                        <label class="x-small text-muted text-uppercase fw-bold">Jornada Presencial</label>
-                        <input type="text" class="form-control form-control-sm border-0 bg-light input-mask-time" 
-                               data-real-name="max_presencial"
-                               value="{% if es_base %}{{ c.max_horas_manana_presencial }}{% else %}{{ c.max_presencial }}{% endif %}" placeholder="00:00">
-                        <input type="hidden" name="max_presencial" value="{% if es_base %}{{ c.max_horas_manana_presencial }}{% else %}{{ c.max_presencial }}{% endif %}">
+                        <label class="x-small text-muted text-uppercase fw-bold">De Mañana</label>
+                        <div class="d-flex align-items-center bg-light rounded p-1 group-split-time">
+                            <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center input-h-split" placeholder="00">
+                            <span class="fw-bold">:</span>
+                            <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center input-m-split" placeholder="00">
+                            <input type="hidden" name="max_presencial" value="{% if es_base %}{{ c.max_horas_manana_presencial|stringformat:'.5f' }}{% else %}{{ c.max_presencial|stringformat:'.5f' }}{% endif %}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="x-small text-muted text-uppercase fw-bold">De Tarde</label>
+                        <div class="d-flex align-items-center bg-light rounded p-1 group-split-time">
+                            <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center input-h-split" placeholder="00">
+                            <span class="fw-bold">:</span>
+                            <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center input-m-split" placeholder="00">
+                            <input type="hidden" name="max_horas_tarde" value="{{ c.max_horas_tarde|default:'0.0'|stringformat:'.5f' }}">
+                        </div>
                     </div>
                     <div>
-                        <label class="x-small text-muted text-uppercase fw-bold">Días Teletrabajo</label>
-                        <input type="text" class="form-control form-control-sm border-0 bg-light input-mask-time" 
-                               data-real-name="max_teletrabajo"
-                               value="{% if es_base %}{{ c.max_horas_manana_teletrabajo }}{% else %}{{ c.max_teletrabajo }}{% endif %}" placeholder="00:00">
-                        <input type="hidden" name="max_teletrabajo" value="{% if es_base %}{{ c.max_horas_manana_teletrabajo }}{% else %}{{ c.max_teletrabajo }}{% endif %}">
+                        <label class="x-small text-muted text-uppercase fw-bold">De Teletrabajo</label>
+                        <div class="d-flex align-items-center bg-light rounded p-1 group-split-time">
+                            <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center input-h-split" placeholder="00">
+                            <span class="fw-bold">:</span>
+                            <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center input-m-split" placeholder="00">
+                            <input type="hidden" name="max_teletrabajo" value="{% if es_base %}{{ c.max_horas_manana_teletrabajo|stringformat:'.5f' }}{% else %}{{ c.max_teletrabajo|stringformat:'.5f' }}{% endif %}">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -90,7 +104,7 @@
                             </div>
                             <div class="col-3 text-center">
                                 <div class="form-check form-switch d-inline-block">
-                                    <input class="form-check-input" type="checkbox" name="dias_teletrabajo" value="{{ id }}" {% if id in d_tele %}checked{% endif %}>
+                                    <input class="form-check-input check-tele" type="checkbox" name="dias_teletrabajo" value="{{ id }}" {% if id in d_tele %}checked{% endif %}>
                                 </div>
                             </div>
                         </div>
@@ -105,6 +119,18 @@
                 <div class="card-body">
                     <h6 class="fw-bold text-warning text-uppercase x-small mb-3"><i class="bi bi-stopwatch"></i> Límites y Descanso</h6>
                     <div class="row g-2 mb-3">
+                        <div class="col-12 mb-3">
+                            <label class="x-small text-muted text-uppercase fw-bold">Obligatorio Mañana</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="time" name="oblig_manana_in" class="form-control form-control-sm border-0 bg-light text-center" value="{{ c.oblig_manana_in|default:'09:00'|time:'H:i' }}">
+                                <span class="small fw-bold">a</span>
+                                <input type="time" name="oblig_manana_out" class="form-control form-control-sm border-0 bg-light text-center" value="{{ c.oblig_manana_out|default:'14:30'|time:'H:i' }}">
+                            </div>
+                        </div>
+                        <div class="col-12 mb-2">
+                            <label class="x-small text-muted text-uppercase fw-bold">Contar entrada desde</label>
+                            <input type="time" name="hora_inicio_conteo" class="form-control form-control-sm border-0 bg-light" value="{{ c.hora_inicio_conteo|time:'H:i' }}">
+                        </div>
                         <div class="col-6">
                             <label class="x-small text-muted text-uppercase fw-bold">Tope Mañana</label>
                             <input type="time" name="max_hora_manana" class="form-control form-control-sm border-0 bg-light" value="{{ c.max_hora_manana|time:'H:i' }}">
@@ -131,17 +157,21 @@
                     <div class="d-flex align-items-center mb-2 mb-md-0">
                         <div class="me-4">
                             <label class="x-small text-uppercase opacity-75 fw-bold d-block">Horas Semanales</label>
-                            <input type="text" class="form-control form-control-sm fw-bold border-0 text-center input-mask-time text-dark bg-white rounded" style="width: 100px;" 
-                                   data-real-name="horas_semanales"
-                                   value="{% if es_base %}{{ c.horas_semanales_estandar }}{% else %}{{ c.horas_semanales }}{% endif %}" placeholder="00:00">
-                            <input type="hidden" name="horas_semanales" value="{% if es_base %}{{ c.horas_semanales_estandar }}{% else %}{{ c.horas_semanales }}{% endif %}">
+                            <div class="d-flex align-items-center bg-white rounded p-1 group-split-time" style="width: 110px;">
+                                <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center text-dark fw-bold input-h-split">
+                                <span class="text-dark fw-bold">:</span>
+                                <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center text-dark fw-bold input-m-split">
+                                <input type="hidden" name="horas_semanales" value="{% if es_base %}{{ c.horas_semanales_estandar|stringformat:'.5f' }}{% else %}{{ c.horas_semanales|stringformat:'.5f' }}{% endif %}">
+                            </div>
                         </div>
-                        <div>
+                        <div class="me-4">
                             <label class="x-small text-uppercase opacity-75 fw-bold d-block">Mín. Horas Tarde</label>
-                            <input type="text" class="form-control form-control-sm fw-bold border-0 text-center input-mask-time text-dark bg-white rounded" style="width: 100px;" 
-                                   data-real-name="min_horas_tarde"
-                                   value="{{ c.min_horas_tarde|default:'0.0' }}" placeholder="00:00">
-                            <input type="hidden" name="min_horas_tarde" value="{{ c.min_horas_tarde|default:'0.0' }}">
+                            <div class="d-flex align-items-center bg-white rounded p-1 group-split-time" style="width: 110px;">
+                                <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center text-dark fw-bold input-h-split">
+                                <span class="text-dark fw-bold">:</span>
+                                <input type="number" class="form-control form-control-sm border-0 bg-transparent text-center text-dark fw-bold input-m-split">
+                                <input type="hidden" name="min_horas_tarde" value="{{ c.min_horas_tarde|default:'0.0'|stringformat:'.5f' }}">
+                            </div>
                         </div>
                     </div>
                     <div class="d-flex gap-2">
@@ -157,102 +187,213 @@
 
 <script>
 (function() {
-    function hhmmToDec(t) {
-        if (!t || !String(t).includes(':')) return parseFloat(t) || 0;
-        const [h, m] = t.split(':').map(Number);
-        return h + (m / 60);
+    function parseToMin(val) {
+        if (!val) return 0;
+        let s = String(val).replace(',', '.').trim();
+        if (s.includes(':')) {
+            const [h, m] = s.split(':').map(Number);
+            return (h * 60) + (m || 0);
+        }
+        return Math.round(parseFloat(s) * 60);
     }
 
-    function decToHHMM(d) {
-        const val = parseFloat(d) || 0;
-        if (val <= 0) return "00:00";
-        const h = Math.floor(val);
-        const m = Math.round((val - h) * 60);
+    function fmt(mTotal) {
+        mTotal = Math.round(mTotal);
+        if (mTotal <= 0) return "00:00";
+        let h = Math.floor(mTotal / 60);
+        let m = mTotal % 60;
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
 
-    // GESTIÓN DE INPUTS CON MÁSCARA Y CAMPOS OCULTOS
-    document.querySelectorAll('.input-mask-time').forEach(input => {
-        const realName = input.dataset.realName;
-        // Buscamos el input hidden que acompaña a este campo visual
-        const hidden = input.closest('.mb-3, .me-4, div, .card-body').querySelector(`input[name="${realName}"]`);
-        
-        // Al cargar: Si el valor es decimal, lo convertimos a HH:MM para el usuario
-        if (hidden && hidden.value && !hidden.value.includes(':')) {
-            input.value = decToHHMM(hidden.value);
+    document.querySelectorAll('.group-split-time').forEach(group => {
+        const hidden = group.querySelector('input[type="hidden"]');
+        const inputH = group.querySelector('.input-h-split');
+        const inputM = group.querySelector('.input-m-split');
+        if (hidden && inputH && inputM) {
+            const mTotal = parseToMin(hidden.value);
+            inputH.value = String(Math.floor(mTotal / 60)).padStart(2, '0');
+            inputM.value = String(mTotal % 60).padStart(2, '0');
+            const sync = () => {
+                let h = parseInt(inputH.value) || 0;
+                let m = parseInt(inputM.value) || 0;
+                if (m > 59) { m = 59; inputM.value = 59; }
+                hidden.value = (h + (m / 60)).toFixed(5);
+                calcularTabla(group.closest('form'));
+            };
+            inputH.addEventListener('input', sync);
+            inputM.addEventListener('input', sync);
         }
-
-        input.addEventListener('input', function() {
-            let val = this.value.replace(/[^0-9]/g, '');
-            if (val.length > 4) val = val.substring(0, 4);
-            if (val.length > 2) {
-                this.value = val.substring(0, 2) + ':' + val.substring(2);
-            } else {
-                this.value = val;
-            }
-        });
-
-        input.addEventListener('blur', function() {
-            let val = this.value.trim();
-            if (!val) val = "00:00";
-            
-            // Autocompletar si es necesario
-            if (!val.includes(':') && !isNaN(val)) {
-                val = val.padStart(2, '0') + ':00';
-            } else if (val.includes(':')) {
-                let [h, m] = val.split(':');
-                h = h.padStart(2, '0');
-                m = (m || '0').padEnd(2, '0').substring(0, 2);
-                if (parseInt(m) > 59) m = '59';
-                val = `${h}:${m}`;
-            }
-            this.value = val;
-
-            // ACTUALIZACIÓN CRÍTICA: Guardamos el decimal en el campo oculto
-            if (hidden) {
-                hidden.value = hhmmToDec(val);
-            }
-            calcularConfig(this.closest('form'));
-        });
     });
 
-    function calcularConfig(form) {
+    function calcularTabla(form) {
+        const alertasCont = form.querySelector('.alertas-dinamicas');
+        alertasCont.innerHTML = "";
+        let msjs = [];
+
+        const maxM_m_base = parseToMin(form.querySelector('[name="max_presencial"]').value);
+        const maxM_m_tele = parseToMin(form.querySelector('[name="max_teletrabajo"]').value);
+        const maxT_m_limit = parseToMin(form.querySelector('[name="max_horas_tarde"]').value);
+        const objSemanal_m = parseToMin(form.querySelector('[name="horas_semanales"]').value);
+        const minTardeSemanal_m = parseToMin(form.querySelector('[name="min_horas_tarde"]').value);
+        
+        const obligM_in = parseToMin(form.querySelector('[name="oblig_manana_in"]').value);
+        const obligM_out = parseToMin(form.querySelector('[name="oblig_manana_out"]').value);
+
+        const inicio_m = parseToMin(form.querySelector('[name="hora_inicio_conteo"]').value);
+        const topeM_m = parseToMin(form.querySelector('[name="max_hora_manana"]').value);
+        const topeT_m = parseToMin(form.querySelector('[name="max_hora_tarde"]').value);
+        const descansoMin = parseInt(form.querySelector('[name="minutos_descanso"]').value) || 0;
+
         let totalM = 0, totalT = 0;
+
         form.querySelectorAll('.row-dia').forEach(row => {
             const id = row.dataset.dia;
-            const mi = row.querySelector(`[name="m_in_${id}"]`);
-            const mo = row.querySelector(`[name="m_out_${id}"]`);
-            const ti = row.querySelector(`[name="t_in_${id}"]`);
-            const to = row.querySelector(`[name="t_out_${id}"]`);
-            const oblig = form.querySelector(`.check-oblig[value="${id}"]`).checked;
+            const diaNom = row.dataset.nombre;
+            const elMi = row.querySelector(`[name="m_in_${id}"]`);
+            const elMo = row.querySelector(`[name="m_out_${id}"]`);
+            const elTi = row.querySelector(`[name="t_in_${id}"]`);
+            const elTo = row.querySelector(`[name="t_out_${id}"]`);
+            
+            const mi = parseToMin(elMi.value);
+            const mo = parseToMin(elMo.value);
+            const ti = parseToMin(elTi.value);
+            const to = parseToMin(elTo.value);
+            const isObligT = form.querySelector(`.check-oblig[value="${id}"]`).checked;
+            const isTele = form.querySelector(`.check-tele[value="${id}"]`).checked;
 
-            if (!oblig) {
-                ti.disabled = to.disabled = true;
-                ti.value = ""; to.value = "";
-                ti.parentElement.style.opacity = "0.4";
-            } else {
-                ti.disabled = to.disabled = false;
-                ti.parentElement.style.opacity = "1";
+            row.querySelectorAll('.input-val').forEach(i => i.classList.remove('warn-ignore', 'text-danger', 'fw-bold'));
+            row.classList.remove('fila-incumple');
+
+            let diaIncumple = false;
+
+            // --- MAÑANA ---
+            let hM = 0;
+            if (mi > 0 && mo > 0) {
+                // Validación Obligatorio Mañana
+                if (mi > obligM_in) {
+                    elMi.classList.add('text-danger', 'fw-bold');
+                    msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>${diaNom}</strong>: La entrada es posterior al horario obligatorio (${fmt(obligM_in)}).`);
+                    diaIncumple = true;
+                }
+                if (mo < obligM_out) {
+                    elMo.classList.add('text-danger', 'fw-bold');
+                    msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>${diaNom}</strong>: La salida es anterior al horario obligatorio (${fmt(obligM_out)}).`);
+                    diaIncumple = true;
+                }
+
+                if (mi < inicio_m) {
+                    elMi.classList.add('warn-ignore');
+                    msjs.push(`<i class="bi bi-info-circle text-primary"></i> <strong>${diaNom}</strong>: Entrada anterior al inicio de conteo (${fmt(inicio_m)}).`);
+                }
+                const startM = Math.max(mi, inicio_m);
+                if (mo > topeM_m) {
+                    elMo.classList.add('warn-ignore');
+                    msjs.push(`<i class="bi bi-info-circle text-primary"></i> <strong>${diaNom}</strong>: Salida superior al tope de mañana (${fmt(topeM_m)}).`);
+                }
+                const endM = Math.min(mo, topeM_m);
+                hM = Math.max(0, endM - startM);
             }
 
-            const hM = Math.max(0, hhmmToDec(mo.value) - hhmmToDec(mi.value));
-            const hT = Math.max(0, hhmmToDec(to.value) - hhmmToDec(ti.value));
+            // --- TARDE ---
+            let hT = 0;
+            if (isObligT && ti > 0 && to > 0) {
+                const inicioLegalT = mo + descansoMin;
+                if (ti < inicioLegalT) {
+                    elTi.classList.add('warn-ignore');
+                    msjs.push(`<i class="bi bi-info-circle text-primary"></i> <strong>${diaNom}</strong>: Descanso insuficiente. Se cuenta desde ${fmt(inicioLegalT)}.`);
+                }
+                const startT = Math.max(ti, inicio_m, inicioLegalT);
+                if (to > topeT_m) {
+                    elTo.classList.add('warn-ignore');
+                    msjs.push(`<i class="bi bi-info-circle text-primary"></i> <strong>${diaNom}</strong>: Salida superior al tope de tarde (${fmt(topeT_m)}).`);
+                }
+                const endT = Math.min(to, topeT_m);
+                hT = Math.max(0, endT - startT);
+            }
 
-            row.querySelector('.subtotal-m-celda').innerText = decToHHMM(hM);
-            row.querySelector('.subtotal-t-celda').innerText = decToHHMM(hT);
-            row.querySelector('.total-dia-celda').innerText = decToHHMM(hM + hT);
+            // Validar Excesos
+            const cellM = row.querySelector('.subtotal-m-celda');
+            const limitM = isTele ? maxM_m_tele : maxM_m_base;
+            if (limitM > 0 && hM > limitM) {
+                cellM.classList.add('text-danger');
+                msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>${diaNom}</strong>: Exceso Mañana (${fmt(hM)} > ${fmt(limitM)}).`);
+                diaIncumple = true;
+            } else cellM.classList.remove('text-danger');
+
+            const cellT = row.querySelector('.subtotal-t-celda');
+            if (isObligT && maxT_m_limit > 0 && hT > maxT_m_limit) {
+                cellT.classList.add('text-danger');
+                msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>${diaNom}</strong>: Exceso Tarde (${fmt(hT)} > ${fmt(maxT_m_limit)}).`);
+                diaIncumple = true;
+            } else cellT.classList.remove('text-danger');
+
+            if (diaIncumple) row.classList.add('fila-incumple');
+
+            cellM.innerText = fmt(hM);
+            cellT.innerText = fmt(hT);
+            row.querySelector('.total-dia-celda').innerText = fmt(hM + hT);
             totalM += hM; totalT += hT;
         });
 
-        form.querySelector('.total-manana').innerText = decToHHMM(totalM);
-        form.querySelector('.total-tarde').innerText = decToHHMM(totalT);
-        form.querySelector('.total-semanal').innerText = decToHHMM(totalM + totalT);
+        const sumTotal = totalM + totalT;
+        form.querySelector('.total-manana').innerText = fmt(totalM);
+        form.querySelector('.total-tarde').innerText = fmt(totalT);
+        const elSemanal = form.querySelector('.total-semanal');
+        elSemanal.innerText = fmt(sumTotal);
+
+        // Resumen Semanal Grave
+        if (sumTotal < objSemanal_m) {
+            elSemanal.classList.add('text-danger');
+            msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>Resumen Semanal</strong>: No se alcanza el objetivo (${fmt(sumTotal)} de ${fmt(objSemanal_m)}).`);
+        } else elSemanal.classList.remove('text-danger');
+
+        if (totalT < minTardeSemanal_m) {
+            form.querySelector('.total-tarde').classList.add('text-danger');
+            msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>Resumen Semanal</strong>: No se alcanza el mínimo de tarde (${fmt(totalT)} de ${fmt(minTardeSemanal_m)}).`);
+        } else form.querySelector('.total-tarde').classList.remove('text-danger');
+
+        if (msjs.length > 0) {
+            alertasCont.innerHTML = `<div class="alert alert-custom shadow-sm border-0 py-2 small"><ul class="mb-0 list-unstyled">${msjs.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
+        }
     }
 
     document.querySelectorAll('.config-form').forEach(f => {
-        f.addEventListener('input', () => calcularConfig(f));
-        f.querySelectorAll('.check-oblig').forEach(c => c.addEventListener('change', () => calcularConfig(f)));
-        calcularConfig(f);
+        f.addEventListener('input', () => calcularTabla(f));
+        calcularTabla(f);
     });
 })();
 </script>
+
+<style>
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+.input-h-split, .input-m-split { width: 40px !important; padding: 2px !important; font-size: 0.95rem; border: none !important; }
+.group-split-time:focus-within { outline: 2px solid #0d6efd; }
+
+/* MARCADO DE FILA INCUMPLIDA */
+#tabla-horarios .fila-incumple td {
+    background-color: #fff1f1 !important;
+}
+#tabla-horarios .fila-incumple td.bg-light {
+    background-color: #ffe5e5 !important;
+}
+
+/* TIEMPO QUE NO COMPUTA */
+.warn-ignore { 
+    background-color: #f1f3f5 !important; 
+    color: #0d6efd !important; 
+    text-decoration: underline dotted #adb5bd !important;
+}
+
+/* TEXTO DE ERROR */
+.text-danger { color: #dc3545 !important; font-weight: bold; }
+
+/* PANEL DE ALERTAS */
+.alert-custom { 
+    background-color: #fffafa; 
+    color: #333; 
+    border-left: 5px solid #dc3545 !important;
+}
+.alert-custom i.text-danger { color: #dc3545 !important; }
+.alert-custom i.bi-info-circle { color: #0d6efd !important; }
+</style>

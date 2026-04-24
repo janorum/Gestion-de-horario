@@ -19,7 +19,7 @@
     <div class="col-12">
         <div class="card shadow-sm border-0 overflow-hidden">
             <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle text-center">
+                <table class="table mb-0 align-middle text-center" id="tabla-horarios">
                     <thead class="table-light">
                         <tr>
                             <th class="text-start ps-4 py-3">Día / Fecha</th>
@@ -32,17 +32,33 @@
                     </thead>
                     <tbody>
                         {% for item in dias %}
-                        <tr data-fecha="{{ item.fecha|date:'Y-m-d' }}">
+                        <tr class="row-dia {% if item.es_festivo %}fila-festivo{% endif %}" 
+                            data-fecha="{{ item.fecha|date:'Y-m-d' }}" 
+                            data-nombre="{{ item.nombre }}"
+                            data-festivo="{{ item.es_festivo|yesno:'true,false' }}">
+                            
                             <td class="text-start ps-4">
                                 <div class="fw-bold text-dark">{{ item.nombre }}</div>
                                 <div class="small text-muted">{{ item.fecha|date:"d/m/Y" }}</div>
+                                {% if item.es_festivo %}
+                                    <span class="badge bg-secondary x-small text-uppercase">{{ item.tipo_evento }}</span>
+                                {% endif %}
                             </td>
-                            <td><input type="time" name="m_in" class="time-input w-100 text-center border-0 bg-transparent" value="{{ item.reg.m_in|time:'H:i' }}"></td>
-                            <td><input type="time" name="m_out" class="time-input w-100 text-center border-0 bg-transparent" value="{{ item.reg.m_out|time:'H:i' }}"></td>
-                            <td class="bg-light fw-bold text-primary subtotal-m-celda">{{ item.total_m_str }}</td>
-                            <td><input type="time" name="t_in" class="time-input w-100 text-center border-0 bg-transparent" value="{{ item.reg.t_in|time:'H:i' }}"></td>
-                            <td><input type="time" name="t_out" class="time-input w-100 text-center border-0 bg-transparent" value="{{ item.reg.t_out|time:'H:i' }}"></td>
-                            <td class="bg-light fw-bold text-primary subtotal-t-celda">{{ item.total_t_str }}</td>
+
+                            {% if item.es_festivo %}
+                                <td colspan="2" class="text-muted small">Jornada Automática</td>
+                                <td class="bg-light fw-bold text-primary subtotal-m-celda">07:30</td>
+                                <td colspan="2" class="text-muted small">-</td>
+                                <td class="bg-light fw-bold text-primary subtotal-t-celda">00:00</td>
+                            {% else %}
+                                <td><input type="time" name="m_in" class="time-input input-val w-100 text-center border-0 bg-transparent" value="{{ item.reg.m_in|time:'H:i' }}"></td>
+                                <td><input type="time" name="m_out" class="time-input input-val w-100 text-center border-0 bg-transparent" value="{{ item.reg.m_out|time:'H:i' }}"></td>
+                                <td class="bg-light fw-bold text-primary subtotal-m-celda">{{ item.total_m_str }}</td>
+                                <td><input type="time" name="t_in" class="time-input input-val w-100 text-center border-0 bg-transparent" value="{{ item.reg.t_in|time:'H:i' }}"></td>
+                                <td><input type="time" name="t_out" class="time-input input-val w-100 text-center border-0 bg-transparent" value="{{ item.reg.t_out|time:'H:i' }}"></td>
+                                <td class="bg-light fw-bold text-primary subtotal-t-celda">{{ item.total_t_str }}</td>
+                            {% endif %}
+
                             <td class="pe-4">
                                 <span class="badge bg-dark fs-6 total-dia-celda">{{ item.total_dia_str }}</span>
                             </td>
@@ -62,6 +78,8 @@
             </div>
         </div>
 
+        <div class="alertas-dinamicas mt-3"></div>
+
         <div class="row mt-4">
             <div class="col-md-4">
                 <div class="card p-3 border-start border-success border-5 shadow-sm text-center">
@@ -76,10 +94,8 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div id="kpi-status-card" class="card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center {% if cumple %}bg-success text-white{% else %}bg-warning text-dark{% endif %}">
-                    <div class="fw-bold text-uppercase" id="kpi-status-text">
-                        {% if cumple %}¡Objetivo Cumplido!{% else %}Horas Pendientes{% endif %}
-                    </div>
+                <div id="kpi-status-card" class="card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center">
+                    <div class="fw-bold text-uppercase" id="kpi-status-text"></div>
                 </div>
             </div>
         </div>
@@ -87,41 +103,139 @@
 </div>
 
 <script>
+// CONFIGURACIÓN RECUPERADA DE OPCIONES
+const CONFIG = {
+    inicio_conteo: "{{ config.hora_inicio_conteo|time:'H:i' }}",
+    tope_m: "{{ config.max_hora_manana|time:'H:i' }}",
+    tope_t: "{{ config.max_hora_tarde|time:'H:i' }}",
+    oblig_m_in: "{{ config.oblig_manana_in|time:'H:i' }}",
+    oblig_m_out: "{{ config.oblig_manana_out|time:'H:i' }}",
+    descanso_min: parseInt("{{ config.minutos_descanso }}") || 0
+};
+
 function parseTime(hhmm) {
     if (!hhmm || hhmm === "00:00") return 0;
     const [h, m] = hhmm.split(':').map(Number);
-    return h + (m / 60);
+    return (h * 60) + (m || 0);
 }
 
-function formatTime(decimal) {
-    const totalMin = Math.round(decimal * 60);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
+function formatTime(minutosTotal) {
+    minutosTotal = Math.round(minutosTotal);
+    const h = Math.floor(minutosTotal / 60);
+    const m = minutosTotal % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 async function recalcularPantalla() {
-    let sumM = 0, sumT = 0;
-    document.querySelectorAll('.subtotal-m-celda').forEach(td => sumM += parseTime(td.innerText));
-    document.querySelectorAll('.subtotal-t-celda').forEach(td => sumT += parseTime(td.innerText));
-    
-    const totalGen = sumM + sumT;
-    const objetivo = parseTime(document.getElementById('val-objetivo').innerText);
+    let sumTotalMin = 0;
+    let sumM = 0;
+    let sumT = 0;
+    let msjs = [];
+    const alertasCont = document.querySelector('.alertas-dinamicas');
+    alertasCont.innerHTML = "";
 
+    document.querySelectorAll('.row-dia').forEach(row => {
+        const diaNom = row.dataset.nombre;
+        const esFestivo = row.dataset.festivo === "true";
+        
+        // Reset de estilos por fila
+        row.classList.remove('fila-incumple');
+        row.querySelectorAll('.input-val').forEach(i => i.classList.remove('warn-ignore', 'text-danger', 'fw-bold'));
+
+        if (esFestivo) {
+            sumM += 450; // 7.5h
+            sumTotalMin += 450;
+            return;
+        }
+
+        const miEl = row.querySelector('[name="m_in"]');
+        const moEl = row.querySelector('[name="m_out"]');
+        const tiEl = row.querySelector('[name="t_in"]');
+        const toEl = row.querySelector('[name="t_out"]');
+
+        const mi = parseTime(miEl.value);
+        const mo = parseTime(moEl.value);
+        const ti = parseTime(tiEl.value);
+        const to = parseTime(toEl.value);
+
+        let hM = 0;
+        let hT = 0;
+        let diaIncumple = false;
+
+        // LÓGICA MAÑANA
+        if (mi > 0 && mo > 0) {
+            // Validar Horario Obligatorio
+            if (mi > parseTime(CONFIG.oblig_m_in)) {
+                miEl.classList.add('text-danger', 'fw-bold');
+                msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>${diaNom}</strong>: Entrada posterior a hora obligatoria (${CONFIG.oblig_m_in}).`);
+                diaIncumple = true;
+            }
+            if (mo < parseTime(CONFIG.oblig_m_out)) {
+                moEl.classList.add('text-danger', 'fw-bold');
+                msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>${diaNom}</strong>: Salida anterior a hora obligatoria (${CONFIG.oblig_m_out}).`);
+                diaIncumple = true;
+            }
+
+            // Advertencias de Conteo (Gris/Azul)
+            if (mi < parseTime(CONFIG.inicio_conteo)) miEl.classList.add('warn-ignore');
+            if (mo > parseTime(CONFIG.tope_m)) moEl.classList.add('warn-ignore');
+
+            const startM = Math.max(mi, parseTime(CONFIG.inicio_conteo));
+            const endM = Math.min(mo, parseTime(CONFIG.tope_m));
+            hM = Math.max(0, endM - startM);
+        }
+
+        // LÓGICA TARDE
+        if (ti > 0 && to > 0) {
+            const inicioLegalT = mo + CONFIG.descanso_min;
+            if (ti < inicioLegalT) {
+                tiEl.classList.add('warn-ignore');
+                msjs.push(`<i class="bi bi-info-circle text-primary"></i> <strong>${diaNom}</strong>: Descanso insuficiente. Tarde cuenta desde ${formatTime(inicioLegalT)}.`);
+            }
+            if (to > parseTime(CONFIG.tope_t)) toEl.classList.add('warn-ignore');
+
+            const startT = Math.max(ti, parseTime(CONFIG.inicio_conteo), inicioLegalT);
+            const endT = Math.min(to, parseTime(CONFIG.tope_t));
+            hT = Math.max(0, endT - startT);
+        }
+
+        if (diaIncumple) row.classList.add('fila-incumple');
+
+        sumM += hM;
+        sumT += hT;
+        sumTotalMin += (hM + hT);
+
+        // Actualizar celdas del día
+        row.querySelector('.subtotal-m-celda').innerText = formatTime(hM);
+        row.querySelector('.subtotal-t-celda').innerText = formatTime(hT);
+        row.querySelector('.total-dia-celda').innerText = formatTime(hM + hT);
+    });
+
+    // TOTALES GLOBALES
+    const objetivoMin = parseTime(document.getElementById('val-objetivo').innerText + ":00");
+    
     document.getElementById('footer-total-m').innerText = formatTime(sumM);
     document.getElementById('footer-total-t').innerText = formatTime(sumT);
-    document.getElementById('footer-total-gen').innerText = formatTime(totalGen);
-    document.getElementById('kpi-realizado').innerText = formatTime(totalGen);
-    document.getElementById('kpi-diferencia').innerText = formatTime(Math.max(0, objetivo - totalGen));
+    document.getElementById('footer-total-gen').innerText = formatTime(sumTotalMin);
+    document.getElementById('kpi-realizado').innerText = formatTime(sumTotalMin);
+    
+    const dif = objetivoMin - sumTotalMin;
+    document.getElementById('kpi-diferencia').innerText = dif > 0 ? formatTime(dif) : "00:00";
 
     const card = document.getElementById('kpi-status-card');
     const txt = document.getElementById('kpi-status-text');
-    if (totalGen >= objetivo) {
+    
+    if (sumTotalMin >= objetivoMin) {
         card.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center bg-success text-white";
         txt.innerText = "¡Objetivo Cumplido!";
     } else {
         card.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center bg-warning text-dark";
         txt.innerText = "Horas Pendientes";
+        msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>Resumen Semanal</strong>: Faltan ${formatTime(dif)} para el objetivo.`);
+    }
+
+    if (msjs.length > 0) {
+        alertasCont.innerHTML = `<div class="alert alert-custom shadow-sm border-0 py-2 small"><ul class="mb-0 list-unstyled">${msjs.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
     }
 }
 
@@ -146,15 +260,54 @@ document.querySelectorAll('.time-input').forEach(input => {
 
             const data = await res.json();
             if (data.status === 'success') {
-                tr.querySelector('.subtotal-m-celda').innerText = data.subtotal_m;
-                tr.querySelector('.subtotal-t-celda').innerText = data.subtotal_t;
-                tr.querySelector('.total-dia-celda').innerText = data.total_dia;
                 recalcularPantalla();
+            } else {
+                alert(data.message || "Error al guardar");
             }
         } catch (err) {
             console.error("Error al guardar:", err);
         }
     });
 });
+
+// Al cargar la página
+document.addEventListener('DOMContentLoaded', recalcularPantalla);
 </script>
+
+<style>
+/* FILA FESTIVO/LICENCIA */
+.fila-festivo td { 
+    background-color: #f8f9fa !important; 
+    color: #adb5bd !important; 
+}
+.fila-festivo .subtotal-m-celda { 
+    background-color: #e9ecef !important; 
+    color: #6c757d !important; 
+}
+
+/* FILA CON INCUMPLIMIENTO GRAVE */
+#tabla-horarios .fila-incumple td {
+    background-color: #fff1f1 !important;
+}
+#tabla-horarios .fila-incumple td.bg-light {
+    background-color: #ffe5e5 !important;
+}
+
+/* ADVERTENCIA CONTEO (NO COMPUTA) */
+.warn-ignore { 
+    background-color: #f1f3f5 !important; 
+    color: #0d6efd !important; 
+    text-decoration: underline dotted #adb5bd !important;
+}
+
+/* TEXTOS Y ALERTAS */
+.text-danger { color: #dc3545 !important; font-weight: bold; }
+.alert-custom { 
+    background-color: #fffafa; 
+    color: #333; 
+    border-left: 5px solid #dc3545 !important;
+}
+.alert-custom i.text-danger { color: #dc3545 !important; }
+.alert-custom i.bi-info-circle { color: #0d6efd !important; }
+</style>
 {% endblock %}

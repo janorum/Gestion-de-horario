@@ -1,16 +1,30 @@
 import json
 from datetime import datetime, date, timedelta
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from apps.horario.models import RegistroDiario
 from apps.horario.services.horario_service import HorarioService
 from apps.opciones.models import ConfiguracionHorario, HorarioEspecial, HorarioDefecto, DiaHorarioEspecial
+from apps.calendario.models import EventoCalendario
 
 class HorarioSemanalView(LoginRequiredMixin, View):
-    """Vista principal para la gestión de horarios filtrada por usuario."""
+    """Vista principal para la gestión de horarios integrada con Eventos de Calendario y Festivos Oficiales."""
     template_name = 'horario/horario.html'
+
+    # Lista de festivos nacionales fijos (día, mes)
+    FESTIVOS_NACIONALES = [
+        (1, 1),   # Año Nuevo
+        (6, 1),   # Reyes
+        (1, 5),   # Fiesta del Trabajo
+        (15, 8),  # Asunción
+        (12, 10), # Fiesta Nacional
+        (1, 11),  # Todos los Santos
+        (6, 12),  # Constitución
+        (8, 12),  # Inmaculada Concepción
+        (25, 12), # Navidad
+    ]
 
     def get(self, request, *args, **kwargs):
         fecha_str = request.GET.get('fecha')
@@ -19,41 +33,59 @@ class HorarioSemanalView(LoginRequiredMixin, View):
         # 1. Obtener datos de la semana del service
         datos_semana = HorarioService.obtener_datos_semana(fecha_ref, usuario=request.user)
         
-        # Variables para recalcular el total semanal si inyectamos defaults
         total_semanal_decimal = 0.0
 
-        # 2. Procesar cada día para inyectar Opciones si el registro está vacío
+        # 2. Procesar cada día para inyectar lógica de calendario y defaults
         for dia in datos_semana.get('dias', []):
             fecha_dia = dia['fecha']
-            reg = dia['reg'] # El registro recuperado/creado por el service
+            reg = dia['reg']
             
-            config = self._obtener_config_por_fecha(request.user, fecha_dia)
+            # --- COMPROBACIÓN DE FESTIVO O EVENTO ---
+            # A) Comprobar si es un festivo nacional fijo
+            es_festivo_oficial = (fecha_dia.day, fecha_dia.month) in self.FESTIVOS_NACIONALES
             
-            # Comprobamos si el registro está vacío (no tiene ninguna hora puesta)
-            es_registro_vacio = not (reg.m_in or reg.m_out or reg.t_in or reg.t_out)
-            
-            if es_registro_vacio:
-                defaults = self._obtener_defaults(request.user, config, fecha_dia.isoweekday())
-                if defaults:
-                    # Inyectamos los valores de Opciones en el objeto 'reg' para que el template los vea
-                    reg.m_in = defaults.m_in
-                    reg.m_out = defaults.m_out
-                    reg.t_in = defaults.t_in
-                    reg.t_out = defaults.t_out
-                    
-                    # Recalculamos los strings de total que usa tu template basándonos en los nuevos datos
-                    h_m = max(0, HorarioService.hhmm_a_decimal(reg.m_out) - HorarioService.hhmm_a_decimal(reg.m_in))
-                    h_t = max(0, HorarioService.hhmm_a_decimal(reg.t_out) - HorarioService.hhmm_a_decimal(reg.t_in))
-                    
-                    dia['total_m_str'] = HorarioService.decimal_a_hhmm(h_m)
-                    dia['total_t_str'] = HorarioService.decimal_a_hhmm(h_t)
-                    dia['total_dia_str'] = HorarioService.decimal_a_hhmm(h_m + h_t)
-            
-            # Sumamos al total decimal de la semana para actualizar el resumen final
-            total_semanal_decimal += HorarioService.hhmm_a_decimal(dia['total_dia_str'])
-            dia['config_nombre'] = config.nombre if isinstance(config, HorarioEspecial) else "Horario Base"
+            # B) Comprobar si hay evento en base de datos (Vacaciones, Asuntos, Festivo local...)
+            evento = EventoCalendario.objects.filter(usuario=request.user, fecha=fecha_dia).first()
 
-        # 3. Actualizar los totales globales de la semana con la nueva suma
+            if es_festivo_oficial or evento:
+                # El día cuenta como 7h 30min (7.5 decimal)
+                dia['es_festivo'] = True
+                dia['tipo_evento'] = evento.get_tipo_display() if evento else "Festivo Oficial"
+                
+                # Inyectamos valores fijos para el cálculo
+                dia['total_m_str'] = "07:30"
+                dia['total_t_str'] = "00:00"
+                dia['total_dia_str'] = "07:30"
+                
+                # Limpiamos los inputs del registro
+                reg.m_in = reg.m_out = reg.t_in = reg.t_out = None
+            else:
+                # Día normal laboral
+                dia['es_festivo'] = False
+                config = self._obtener_config_por_fecha(request.user, fecha_dia)
+                
+                # Inyectar defaults si el registro está vacío
+                if not (reg.m_in or reg.m_out or reg.t_in or reg.t_out):
+                    defaults = self._obtener_defaults(request.user, config, fecha_dia.isoweekday())
+                    if defaults:
+                        reg.m_in = defaults.m_in
+                        reg.m_out = defaults.m_out
+                        reg.t_in = defaults.t_in
+                        reg.t_out = defaults.t_out
+                        
+                        h_m = max(0, HorarioService.hhmm_a_decimal(reg.m_out) - HorarioService.hhmm_a_decimal(reg.m_in))
+                        h_t = max(0, HorarioService.hhmm_a_decimal(reg.t_out) - HorarioService.hhmm_a_decimal(reg.t_in))
+                        
+                        dia['total_m_str'] = HorarioService.decimal_a_hhmm(h_m)
+                        dia['total_t_str'] = HorarioService.decimal_a_hhmm(h_t)
+                        dia['total_dia_str'] = HorarioService.decimal_a_hhmm(h_m + h_t)
+                
+                dia['config_nombre'] = config.nombre if isinstance(config, HorarioEspecial) else "Horario Base"
+
+            # Sumar al total semanal
+            total_semanal_decimal += HorarioService.hhmm_a_decimal(dia['total_dia_str'])
+
+        # 3. Totales globales
         objetivo = HorarioService.obtener_objetivo_semanal(request.user)
         datos_semana['totales_semanales']['total'] = HorarioService.decimal_a_hhmm(total_semanal_decimal)
         datos_semana['faltan_str'] = HorarioService.decimal_a_hhmm(max(0, objetivo - total_semanal_decimal))
@@ -61,10 +93,11 @@ class HorarioSemanalView(LoginRequiredMixin, View):
 
         context = {
             **datos_semana,
-            'fecha_actual': fecha_ref,
+            'fecha_ref': fecha_ref,
             'fecha_hoy': date.today(),
             'semana_anterior': (fecha_ref - timedelta(days=7)).strftime('%Y-%m-%d'),
             'semana_siguiente': (fecha_ref + timedelta(days=7)).strftime('%Y-%m-%d'),
+            'config': ConfiguracionHorario.objects.get_or_create(usuario=request.user)[0],
         }
         
         return render(request, self.template_name, context)
@@ -86,7 +119,9 @@ class HorarioSemanalView(LoginRequiredMixin, View):
 
 
 class GuardarRegistroAjaxView(LoginRequiredMixin, View):
-    """API para guardar cambios en tiempo real vía AJAX."""
+    """API para guardar cambios vía AJAX, bloqueando días festivos o con eventos."""
+
+    FESTIVOS_NACIONALES = HorarioSemanalView.FESTIVOS_NACIONALES
 
     def post(self, request, *args, **kwargs):
         try:
@@ -96,12 +131,17 @@ class GuardarRegistroAjaxView(LoginRequiredMixin, View):
             valor = data.get('valor')
 
             fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            
+            # Bloqueo: Festivos Oficiales o Eventos de Calendario
+            es_festivo_fijo = (fecha_dt.day, fecha_dt.month) in self.FESTIVOS_NACIONALES
+            es_evento = EventoCalendario.objects.filter(usuario=request.user, fecha=fecha_dt).exists()
+            
+            if es_festivo_fijo or es_evento:
+                return JsonResponse({'status': 'error', 'message': 'Día festivo o evento. No editable.'}, status=403)
+
             config = self._obtener_config_por_fecha(request.user, fecha_dt)
+            registro, _ = RegistroDiario.objects.get_or_create(fecha=fecha_dt, usuario=request.user)
             
-            # El service ya garantiza que el registro existe por su get_or_create
-            registro = RegistroDiario.objects.get(fecha=fecha_dt, usuario=request.user)
-            
-            # Si el registro estaba vacío antes de esta edición, aplicamos defaults
             if not (registro.m_in or registro.m_out or registro.t_in or registro.t_out):
                 defaults = self._obtener_defaults(request.user, config, fecha_dt.isoweekday())
                 if defaults:
@@ -110,7 +150,6 @@ class GuardarRegistroAjaxView(LoginRequiredMixin, View):
                     registro.t_in = defaults.t_in
                     registro.t_out = defaults.t_out
 
-            # Aplicar el cambio del usuario
             if valor and valor.strip():
                 setattr(registro, campo, valor)
             else:
@@ -138,8 +177,7 @@ class GuardarRegistroAjaxView(LoginRequiredMixin, View):
             fin = date(fecha.year, esp.mes_fin, esp.dia_fin)
             if (inicio <= fin and inicio <= fecha <= fin) or (inicio > fin and (fecha >= inicio or fecha <= fin)):
                 return esp
-        config, _ = ConfiguracionHorario.objects.get_or_create(usuario=usuario)
-        return config
+        return ConfiguracionHorario.objects.get_or_create(usuario=usuario)[0]
 
     def _obtener_defaults(self, usuario, config, dia_sem):
         if isinstance(config, HorarioEspecial):
