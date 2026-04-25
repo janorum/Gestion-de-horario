@@ -74,7 +74,10 @@
                         <option value="BORRAR">❌ BORRAR DÍA</option>
                     </select>
                 </div>
-                <small class="opacity-75" style="font-size: 0.65rem;">* Modo pintura activo (clic o arrastre).</small>
+                <div class="small fw-bold text-uppercase d-flex gap-3" style="font-size: 0.65rem;">
+                    <span>VAC: <span id="val-vac" class="text-success">{{ saldo.vacaciones_restantes }}</span></span>
+                    <span>ASU: <span id="val-asu" class="text-info">{{ saldo.asuntos_restantes }}</span></span>
+                </div>
             </div>
         </div>
         
@@ -154,7 +157,7 @@
                                         <div class="fw-bold small">{{ ev.nombre }}</div>
                                         <div class="small opacity-90" style="font-size:0.65rem">{{ ev.fecha|date:"d M" }} - {{ ev.tipo_label }}</div>
                                     </div>
-                                    {% if ev.borrable %}<button type="button" onclick="borrarEventoAsync('{{ ev.id }}', '{{ ev.fecha|date:'Y-m-d' }}')" class="btn btn-sm btn-light border p-0 px-2 fw-bold text-dark" style="background: rgba(255,255,255,0.4);">&times;</button>{% endif %}
+                                    <button type="button" onclick="borrarEventoAsync('{{ ev.id }}', '{{ ev.fecha|date:'Y-m-d' }}')" class="btn btn-sm btn-light border p-0 px-2 fw-bold text-dark" style="background: rgba(255,255,255,0.4);">&times;</button>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -164,44 +167,6 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalDia" tabindex="-1">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <form action="{% url 'calendario:guardar_evento' %}" method="POST" id="form-dia" class="modal-content border-0 shadow">
-            {% csrf_token %}
-            <div class="modal-header bg-light py-2">
-                <h6 class="modal-title fw-bold text-dark small text-uppercase">Configurar Día</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" name="fecha" id="input-fecha">
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted text-uppercase">Día</label>
-                    <div id="label-fecha" class="form-control-plaintext fw-bold text-primary py-0 fs-5"></div>
-                </div>
-                <div id="controles-edicion">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Tipo</label>
-                        <select name="tipo" id="select-tipo" class="form-select form-select-sm" required>
-                            <option value="" disabled selected>Elegir tipo...</option>
-                            {% for valor, etiqueta in tipos_opciones %}
-                            <option value="{{ valor }}">{{ etiqueta }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-0">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Descripción</label>
-                        <input type="text" name="descripcion" id="input-desc" class="form-control form-control-sm" placeholder="Opcional...">
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer bg-light border-0 py-2 d-flex flex-column gap-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Guardar</button>
-                <button type="button" class="btn btn-outline-danger btn-sm w-100 fw-bold" onclick="desmarcarDia()">Desmarcar Día</button>
-            </div>
-        </form>
     </div>
 </div>
 
@@ -221,16 +186,14 @@ function toggleModoPintar() {
 }
 
 function iniciarArrastre(celda) {
-    if (!modoPinturaActivo) return;
-    if (celda.dataset.esOficial === 'true') return;
+    if (!modoPinturaActivo || celda.dataset.esOficial === 'true') return;
     isDragging = true;
     pintarDiaAsync(celda.dataset.fecha);
     lastPaintedDate = celda.dataset.fecha;
 }
 
 function pintarEnArrastre(celda) {
-    if (!isDragging || !modoPinturaActivo) return;
-    if (celda.dataset.esOficial === 'true') return;
+    if (!isDragging || !modoPinturaActivo || celda.dataset.esOficial === 'true') return;
     if (lastPaintedDate === celda.dataset.fecha) return;
     lastPaintedDate = celda.dataset.fecha;
     pintarDiaAsync(celda.dataset.fecha);
@@ -239,6 +202,8 @@ function pintarEnArrastre(celda) {
 function manejadorClickDia(fecha, tipoDia, descActual, tipoRaw, esOficial) {
     if (!modoPinturaActivo) {
         abrirEditor(fecha, tipoDia, descActual, tipoRaw, esOficial);
+    } else {
+        pintarDiaAsync(fecha);
     }
 }
 
@@ -260,15 +225,22 @@ async function pintarDiaAsync(fecha) {
         });
 
         if (response.ok) {
-            // Sincronía: En el modelo FESTIVO se guarda como FESTIVO, pero el service lo manda como FESTIVO_EXTRA para diferenciar color.
+            const data = await response.json();
+            
+            // Actualizar saldos UI
+            if (data.vacaciones_restantes !== undefined) document.getElementById('val-vac').innerText = data.vacaciones_restantes;
+            if (data.asuntos_restantes !== undefined) document.getElementById('val-asu').innerText = data.asuntos_restantes;
+
             const tipoVisual = (tipoSeleccionado === 'FESTIVO') ? 'FESTIVO_EXTRA' : tipoSeleccionado;
 
+            // Eliminar de la lista lateral si ya existía en esa fecha
             const filaExistente = document.querySelector(`.item-evento-lista[data-fecha="${fecha}"]`);
             if (filaExistente) {
                 actualizarContadoresMes(fecha, filaExistente.dataset.tipo, 'RESTAR');
                 filaExistente.remove();
             }
 
+            // Limpiar clases de la celda
             const clases = ['FESTIVO', 'FESTIVO_EXTRA', 'VACACIONES', 'ASUNTOS_PROPIOS', 'BAJA', 'ENFERMEDAD', 'SIN_SUELDO', 'OTRO'];
             celda.classList.remove(...clases);
             const infoContenedor = celda.querySelector('.info-dia');
@@ -277,6 +249,7 @@ async function pintarDiaAsync(fecha) {
                 celda.classList.add(tipoVisual);
                 infoContenedor.innerHTML = `<div class="fw-bolder text-uppercase text-truncate label-tipo" style="font-size: 0.6rem; line-height: 1;">${tipoSeleccionado}</div>`;
                 
+                // Inyectar visualmente en la lista lateral
                 inyectarEnResumen(fecha, tipoVisual, tipoSeleccionado);
                 actualizarContadoresMes(fecha, tipoVisual, 'SUMAR');
             } else {
@@ -314,6 +287,7 @@ function actualizarContadoresMes(fecha, tipo, operacion) {
     let total = parseInt(badgeTotal.innerText.replace('T: ', ''));
     total = (operacion === 'SUMAR') ? total + 1 : total - 1;
     badgeTotal.innerText = `T: ${total}`;
+    
     let badgeTipo = itemMes.querySelector(`.badge-conteo[data-tipo="${tipo}"]`);
     if (operacion === 'SUMAR') {
         if (!badgeTipo) {
@@ -335,10 +309,28 @@ async function borrarEventoDesdeUI(fecha) {
 
 async function borrarEventoAsync(eventoId, fecha) {
     try {
-        const response = await fetch(`/calendario/borrar/${eventoId}/`, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const response = await fetch(`/calendario/borrar/${eventoId}/`, { 
+            method: 'GET', 
+            headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+        });
         if (response.ok) {
+            const data = await response.json();
+            if (data.vacaciones_restantes !== undefined) document.getElementById('val-vac').innerText = data.vacaciones_restantes;
+            if (data.asuntos_restantes !== undefined) document.getElementById('val-asu').innerText = data.asuntos_restantes;
+
             const fila = document.getElementById(`fila-evento-${eventoId}`);
-            if (fila) { actualizarContadoresMes(fecha, fila.dataset.tipo, 'RESTAR'); fila.remove(); }
+            if (fila) { 
+                actualizarContadoresMes(fecha, fila.dataset.tipo, 'RESTAR'); 
+                fila.remove(); 
+            } else {
+                // Si no tiene ID directo, buscamos por fecha
+                const filaPorFecha = document.querySelector(`.item-evento-lista[data-fecha="${fecha}"]`);
+                if (filaPorFecha) {
+                    actualizarContadoresMes(fecha, filaPorFecha.dataset.tipo, 'RESTAR');
+                    filaPorFecha.remove();
+                }
+            }
+
             const celda = document.getElementById(`celda-${fecha}`);
             if (celda) {
                 celda.classList.remove('FESTIVO','FESTIVO_EXTRA','VACACIONES','ASUNTOS_PROPIOS','BAJA','ENFERMEDAD','SIN_SUELDO','OTRO');
@@ -363,17 +355,14 @@ function abrirEditor(fecha, tipoDia, descActual, tipoRaw, esOficial) {
     document.getElementById('label-fecha').innerText = `${partes[2]}/${partes[1]}/${partes[0]}`;
     document.getElementById('input-desc').value = (descActual === 'None' || descActual === '') ? '' : descActual;
     const selectTipo = document.getElementById('select-tipo');
-    if (tipoRaw && tipoRaw !== 'None' && tipoRaw !== '') {
-        selectTipo.value = (tipoRaw === 'FESTIVO_EXTRA') ? 'FESTIVO' : tipoRaw;
-    } else { selectTipo.value = ""; }
+    selectTipo.value = (tipoRaw === 'FESTIVO_EXTRA') ? 'FESTIVO' : (tipoRaw || "");
     new bootstrap.Modal(document.getElementById('modalDia')).show();
 }
 
 function desmarcarDia() {
     const select = document.getElementById('select-tipo');
-    let opt = select.querySelector('option[value="BORRAR"]');
-    if (!opt) { opt = document.createElement('option'); opt.value = 'BORRAR'; select.appendChild(opt); }
-    opt.selected = true;
+    let opt = document.createElement('option'); opt.value = 'BORRAR'; opt.selected = true;
+    select.appendChild(opt);
     select.closest('form').submit();
 }
 </script>
@@ -382,25 +371,11 @@ function desmarcarDia() {
     .dia-calendario:hover { filter: brightness(0.92); transition: 0.2s; }
     .dia-calendario { border: 1px solid #dee2e6 !important; background-color: #fff; min-height: 110px; position: relative; }
     .bg-custom-mes { background-color: #e9ecef !important; }
-    
     .numero-dia { position: relative; z-index: 2; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
-    .dia-hoy .numero-dia::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 30px;
-        height: 30px;
-        background-color: #212529; 
-        border-radius: 50%;
-        z-index: -1;
-    }
+    .dia-hoy .numero-dia::before { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; background-color: #212529; border-radius: 50%; z-index: -1; }
     .dia-hoy .numero-dia { color: #ffffff !important; }
-
     .modo-pincel:hover { border: 2px solid #000 !important; transform: scale(1.02); z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     .pointer-none { pointer-events: none; }
-
     .FESTIVO, .festivo { background-color: #dc3545 !important; color: white !important; }
     .FESTIVO_EXTRA { background-color: #ffc107 !important; color: white !important; }
     .VACACIONES { background-color: #198754 !important; color: white !important; }
@@ -409,10 +384,5 @@ function desmarcarDia() {
     .ENFERMEDAD { background-color: #6610f2 !important; color: white !important; }
     .SIN_SUELDO { background-color: #212529 !important; color: white !important; }
     .OTRO { background-color: #6c757d !important; color: white !important; }
-
-    .item-mes-resumen { border: 1px solid #dee2e6 !important; border-radius: 4px !important; }
-    .item-mes-resumen:has(.accordion-button:not(.collapsed)) { border: 2px solid #000 !important; }
-    .accordion-button:not(.collapsed) { background-color: #dee2e6 !important; color: #000 !important; font-weight: 800; border-bottom: 2px solid #000 !important; }
-    .festivo-resumen { opacity: 0.9 !important; border-bottom: 1px solid rgba(0,0,0,0.1) !important; }
 </style>
 {% endblock %}
