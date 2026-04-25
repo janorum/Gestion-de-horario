@@ -26,10 +26,16 @@ class ConfiguracionHorario(models.Model):
     max_horas_manana_presencial = models.FloatField(default=6.0)
     max_horas_manana_teletrabajo = models.FloatField(default=7.0)
 
+    horas_festivo = models.FloatField(default=7.5)
+
+    def __str__(self):
+        return f"Configuración de {self.usuario.username}"
+
     def get_dias_list(self, attr):
         campo = getattr(self, attr)
         if not campo: return []
-        return [int(d) for d in campo.split(',') if d.isdigit()]
+        # Limpia espacios y asegura que son dígitos antes de convertir a int
+        return [int(d.strip()) for d in str(campo).split(',') if d.strip().isdigit()]
 
 class HorarioDefecto(models.Model):
     DIAS = [(1, 'Lunes'), (2, 'Martes'), (3, 'Miércoles'), (4, 'Jueves'), (5, 'Viernes'), (6, 'Sábado'), (7, 'Domingo')]
@@ -76,13 +82,22 @@ class HorarioEspecial(models.Model):
     max_presencial = models.FloatField(default=6.0)
     max_teletrabajo = models.FloatField(default=7.0)
 
+    horas_festivo = models.FloatField(default=7.5)
+
+    def __str__(self):
+        return f"{self.nombre} - {self.usuario.username}"
+
     def get_dias_list_oblig(self):
         if not self.dias_obligatorios_tarde: return []
-        return [int(d) for d in self.dias_obligatorios_tarde.split(',') if d.isdigit()]
+        return [int(d.strip()) for d in str(self.dias_obligatorios_tarde).split(',') if d.strip().isdigit()]
+
+    def get_dias_list_tarde(self):
+        """Alias para mantener compatibilidad con la View"""
+        return self.get_dias_list_oblig()
 
     def get_dias_list_tele(self):
         if not self.dias_teletrabajo: return []
-        return [int(d) for d in self.dias_teletrabajo.split(',') if d.isdigit()]
+        return [int(d.strip()) for d in str(self.dias_teletrabajo).split(',') if d.strip().isdigit()]
 
 class DiaHorarioEspecial(models.Model):
     DIAS = HorarioDefecto.DIAS 
@@ -102,9 +117,23 @@ class SaldoDias(models.Model):
     anio = models.IntegerField(default=2026)
     vacaciones_totales = models.IntegerField(default=22)
     asuntos_propios_totales = models.IntegerField(default=6)
+    
+    # Estos campos se actualizarán desde el service contando eventos del calendario
     vacaciones_disfrutadas = models.IntegerField(default=0)
     asuntos_disfrutados = models.IntegerField(default=0)
 
     class Meta:
         unique_together = ['usuario', 'anio']
         verbose_name = "Saldo de Días"
+        verbose_name_plural = "Saldos de Días"
+
+    def __str__(self):
+        return f"Saldo {self.anio} - {self.usuario.username}"
+
+    @property
+    def vacaciones_restantes(self):
+        return max(0, self.vacaciones_totales - self.vacaciones_disfrutadas)
+
+    @property
+    def asuntos_restantes(self):
+        return max(0, self.asuntos_propios_totales - self.asuntos_disfrutados)

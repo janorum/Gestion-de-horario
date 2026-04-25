@@ -52,7 +52,7 @@
 
                             {% if item.es_festivo %}
                                 <td colspan="2" class="text-muted small italic">Festivo / Evento</td>
-                                <td class="bg-light fw-bold text-primary">07:30</td>
+                                <td class="bg-light fw-bold text-primary celda-valor-festivo">{{ item.total_m_str }}</td>
                                 <td colspan="2" class="text-muted small">-</td>
                                 <td class="bg-light fw-bold text-primary">00:00</td>
                             {% else %}
@@ -120,7 +120,8 @@ const CONFIG = {
     descanso_min: parseInt("{{ config.minutos_descanso }}") || 0,
     limite_m_presencial: parseFloat("{{ config.max_horas_manana_presencial }}".replace(',', '.')) * 60,
     limite_m_tele: parseFloat("{{ config.max_horas_manana_teletrabajo }}".replace(',', '.')) * 60,
-    limite_tarde: parseFloat("{{ config.max_horas_tarde }}".replace(',', '.')) * 60
+    limite_tarde: parseFloat("{{ config.max_horas_tarde }}".replace(',', '.')) * 60,
+    minutos_festivo: parseFloat("{{ config.horas_festivo|default:'7.5' }}".replace(',', '.')) * 60
 };
 
 function parseTime(hhmm) {
@@ -150,7 +151,13 @@ function recalcularPantalla() {
         row.querySelectorAll('.time-input:not([disabled])').forEach(i => i.classList.remove('warn-ignore', 'text-danger', 'fw-bold'));
 
         if (esFestivo) {
-            sumM += 450; sumTotalMin += 450;
+            // El valor viene del HorarioService y se refleja en CONFIG.minutos_festivo
+            const minFestivo = CONFIG.minutos_festivo;
+            sumM += minFestivo; 
+            sumTotalMin += minFestivo;
+            row.querySelector('.total-dia-celda').innerText = formatTime(minFestivo);
+            const celdaValFest = row.querySelector('.celda-valor-festivo');
+            if(celdaValFest) celdaValFest.innerText = formatTime(minFestivo);
             return;
         }
 
@@ -166,7 +173,6 @@ function recalcularPantalla() {
 
         let hM = 0, hT = 0, tieneError = false;
 
-        // LÓGICA MAÑANA (Sincronizada con Opciones)
         if (mi > 0 && mo > 0) {
             if (mi > parseTime(CONFIG.oblig_m_in)) {
                 row.querySelector('[name="m_in"]').classList.add('text-danger', 'fw-bold');
@@ -190,29 +196,16 @@ function recalcularPantalla() {
             if (hM > limitM) hM = limitM;
         }
 
-        // LÓGICA TARDE (Sincronizada con Opciones)
         if (tiEl && !tiEl.disabled && ti > 0 && to > 0) {
             const inicioLegalT = mo + CONFIG.descanso_min;
-            
-            if (ti < inicioLegalT) {
-                tiEl.classList.add('warn-ignore');
-                msjs.push(`<i class="bi bi-info-circle-fill text-primary"></i> <strong>${diaNom}</strong>: Descanso insuficiente. Tarde cuenta desde las ${formatTime(inicioLegalT)}.`);
-            }
-            
-            if (to > parseTime(CONFIG.tope_t)) {
-                toEl.classList.add('warn-ignore');
-                msjs.push(`<i class="bi bi-exclamation-triangle-fill text-warning"></i> <strong>${diaNom}</strong>: Salida superior al tope de tarde (${CONFIG.tope_t}).`);
-            }
-
+            if (ti < inicioLegalT) tiEl.classList.add('warn-ignore');
             const startT = Math.max(ti, parseTime(CONFIG.tope_m), inicioLegalT);
             const endT = Math.min(to, parseTime(CONFIG.tope_t));
             hT = Math.max(0, endT - startT);
-
             if (hT > CONFIG.limite_tarde) hT = CONFIG.limite_tarde;
         }
 
         if (tieneError) row.classList.add('fila-incumple');
-
         sumM += hM; sumT += hT; sumTotalMin += (hM + hT);
 
         row.querySelector('.subtotal-m-celda').innerText = formatTime(hM);

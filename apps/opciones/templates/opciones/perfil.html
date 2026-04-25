@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card shadow-sm border-0">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="card-body p-4 p-lg-5">
+                        <div class="d-flex align-items-center mb-4">
+                            <i class="bi bi-person-gear fs-2 text-primary me-3"></i>
+                            <h4 class="fw-bold mb-0 text-primary">Configuración de Cuenta</h4>
+                        </div>
+                        
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="small fw-bold text-muted text-uppercase mb-2 d-block">Nombre</label>
+                                <input type="text" name="first_name" class="form-control bg-light border-0 py-2" value="{{ user.first_name }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small fw-bold text-muted text-uppercase mb-2 d-block">Apellidos</label>
+                                <input type="text" name="last_name" class="form-control bg-light border-0 py-2" value="{{ user.last_name }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="small fw-bold text-muted text-uppercase mb-2 d-block">Correo Electrónico</label>
+                                <input type="email" name="email" class="form-control bg-light border-0 py-2" value="{{ user.email }}">
+                            </div>
+                            
+                            <div class="col-12 mt-5">
+                                <div class="p-4 bg-light rounded-4 border border-danger border-opacity-10">
+                                    <h6 class="fw-bold text-danger text-uppercase x-small mb-3">Seguridad y Acceso</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="small fw-bold text-muted text-uppercase mb-2 d-block">Nueva Contraseña</label>
+                                            <input type="password" name="pass1" class="form-control border-0 shadow-sm" placeholder="Dejar en blanco para no cambiar">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="small fw-bold text-muted text-uppercase mb-2 d-block">Confirmar Contraseña</label>
+                                            <input type="password" name="pass2" class="form-control border-0 shadow-sm" placeholder="Repetir nueva contraseña">
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <small class="text-muted"><i class="bi bi-info-circle me-1"></i> Si cambias la contraseña, se cerrará tu sesión en otros dispositivos.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 d-flex justify-content-between align-items-center">
+                            <a href="{% url 'opciones:main' %}" class="btn btn-link text-decoration-none text-muted fw-bold">
+                                <i class="bi bi-arrow-left"></i> Volver a Opciones
+                            </a>
+                            <button type="submit" name="update_profile" class="btn btn-dark fw-bold px-5 py-3 shadow">
+                                <i class="bi bi-shield-check me-2"></i> GUARDAR CAMBIOS DE PERFIL
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .x-small { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; }
+    .form-control:focus { 
+        background-color: #fff !important; 
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15) !important;
+        border: 1px solid var(--primary-color) !important;
+    }
+</style>
+{% endblock %}

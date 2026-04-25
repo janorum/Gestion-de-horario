@@ -42,7 +42,26 @@ class HorarioService:
 
     @classmethod
     def calcular_horas_reales(cls, reg, config, fecha: date) -> tuple[float, float]:
-        """Calcula horas de mañana y tarde aplicando topes y límites de opciones."""
+        """Calcula horas de mañana y tarde aplicando topes, límites y horas por festivo/permiso."""
+        from apps.calendario.models import EventoCalendario
+        
+        # 1. Verificar si el día es festivo o tiene un permiso (VAC/ASU/etc) en el calendario
+        evento = EventoCalendario.objects.filter(usuario=reg.usuario, fecha=fecha).first()
+        es_festivo_oficial = False
+        
+        # También comprobamos festivos oficiales para que computen según la configuración
+        import holidays
+        festivos_oficiales = holidays.CountryHoliday('ES', prov='GA', years=fecha.year)
+        if fecha in festivos_oficiales:
+            es_festivo_oficial = True
+
+        # Si el día está marcado en el calendario o es festivo oficial, aplicamos las horas configuradas
+        if evento or es_festivo_oficial:
+            # Usamos el nuevo campo dinámico de la configuración (o 7.5 por defecto si no existe)
+            horas_computables = getattr(config, 'horas_festivo', 7.5)
+            return round(horas_computables, 2), 0.0
+
+        # 2. Si es un día laboral normal, procedemos con el cálculo de fichajes
         h_m = 0.0
         if reg.m_in and reg.m_out:
             mi = cls.hhmm_a_decimal(reg.m_in)

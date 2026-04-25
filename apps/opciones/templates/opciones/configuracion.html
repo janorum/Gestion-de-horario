@@ -26,11 +26,6 @@
             <i class="bi bi-calendar-check me-1"></i> Vacaciones y Asuntos
         </button>
     </li>
-    <li class="nav-item ms-auto">
-        <button class="nav-link fw-bold text-secondary" data-bs-toggle="pill" data-bs-target="#tab-cuenta">
-            <i class="bi bi-person-circle me-1"></i> Mi Cuenta
-        </button>
-    </li>
 </ul>
 
 <div class="tab-content" id="pills-tabContent">
@@ -80,7 +75,7 @@
 
     <div class="tab-pane fade" id="tab-saldo">
         <div class="row g-4">
-            <div class="col-lg-6">
+            <div class="col-lg-5">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body p-4">
                         <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-calculator me-2"></i> Configuración de Saldo 2026</h5>
@@ -107,64 +102,54 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-6">
-                <div class="card shadow-sm border-0 bg-primary text-white h-100 d-flex align-items-center justify-content-center p-5 text-center">
-                    <div>
-                        <div class="display-1 fw-bold mb-0">{{ saldo.vacaciones_totales|add:saldo.asuntos_propios_totales }}</div>
-                        <div class="h5 fw-light opacity-75">Días Totales Disponibles</div>
-                        <hr class="my-4 opacity-25">
-                        <div class="d-flex justify-content-center gap-4">
-                            <div><div class="h3 mb-0 fw-bold">{{ saldo.vacaciones_totales }}</div><small class="opacity-75">Vacaciones</small></div>
-                            <div class="vr opacity-25"></div>
-                            <div><div class="h3 mb-0 fw-bold">{{ saldo.asuntos_propios_totales }}</div><small class="opacity-75">Asuntos</small></div>
+            
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4 text-dark"><i class="bi bi-pie-chart-fill me-2"></i> Resumen de Consumo</h5>
+                        
+                        <div class="p-3 mb-4 rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-10">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <h3 class="fw-bold text-primary mb-0">{{ saldo.vacaciones_restantes }}</h3>
+                                    <small class="fw-bold text-uppercase text-primary x-small">Días disponibles</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ saldo.vacaciones_disfrutadas }} gastados</span>
+                                    <div class="x-small text-muted mt-1 text-uppercase">Total: {{ saldo.vacaciones_totales }}</div>
+                                </div>
+                            </div>
+                            <div class="progress bg-white bg-opacity-50" style="height: 10px;">
+                                <div class="progress-bar bg-primary" role="progressbar" 
+                                     style="width: {% widthratio saldo.vacaciones_disfrutadas saldo.vacaciones_totales 100 %}%">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded-4 bg-info bg-opacity-10 border border-info border-opacity-10">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <h3 class="fw-bold text-info mb-0">{{ saldo.asuntos_restantes }}</h3>
+                                    <small class="fw-bold text-uppercase text-info x-small">Días disponibles</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-info text-dark">{{ saldo.asuntos_disfrutados }} gastados</span>
+                                    <div class="x-small text-muted mt-1 text-uppercase">Total: {{ saldo.asuntos_propios_totales }}</div>
+                                </div>
+                            </div>
+                            <div class="progress bg-white bg-opacity-50" style="height: 10px;">
+                                <div class="progress-bar bg-info" role="progressbar" 
+                                     style="width: {% widthratio saldo.asuntos_disfrutados saldo.asuntos_propios_totales 100 %}%">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-light rounded-3">
+                            <small class="text-muted"><i class="bi bi-info-circle-fill me-1"></i> Estos datos se calculan automáticamente sumando los días marcados como Vacaciones o Asuntos Propios en tu <strong>Calendario</strong>.</small>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div class="tab-pane fade" id="tab-cuenta">
-        <div class="card shadow-sm border-0">
-            <form method="POST">
-                {% csrf_token %}
-                <div class="card-body p-4 p-lg-5">
-                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-person-gear me-2"></i> Configuración de Cuenta</h5>
-                    <div class="row g-4">
-                        <div class="col-md-6">
-                            <label class="x-small fw-bold text-muted text-uppercase">Nombre</label>
-                            <input type="text" name="first_name" class="form-control bg-light border-0 py-2" value="{{ user.first_name }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="x-small fw-bold text-muted text-uppercase">Apellidos</label>
-                            <input type="text" name="last_name" class="form-control bg-light border-0 py-2" value="{{ user.last_name }}">
-                        </div>
-                        <div class="col-12">
-                            <label class="x-small fw-bold text-muted text-uppercase">Correo Electrónico</label>
-                            <input type="email" name="email" class="form-control bg-light border-0 py-2" value="{{ user.email }}">
-                        </div>
-                        
-                        <div class="col-12 mt-5">
-                            <h6 class="fw-bold text-danger text-uppercase x-small mb-3">Seguridad y Acceso</h6>
-                            <div class="row g-3 p-3 bg-light rounded-3">
-                                <div class="col-md-6">
-                                    <label class="x-small fw-bold text-muted text-uppercase">Nueva Contraseña</label>
-                                    <input type="password" name="pass1" class="form-control border-0" placeholder="Dejar en blanco para no cambiar">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="x-small fw-bold text-muted text-uppercase">Confirmar Contraseña</label>
-                                    <input type="password" name="pass2" class="form-control border-0" placeholder="Repetir nueva contraseña">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-5 text-end">
-                        <button type="submit" name="update_profile" class="btn btn-dark fw-bold px-5 py-2">
-                            <i class="bi bi-shield-check me-2"></i> GUARDAR CAMBIOS DE PERFIL
-                        </button>
-                    </div>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -210,7 +195,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // 1. UTILIDADES DE TIEMPO
         function hhmmToDec(t) {
             if (!t || !t.includes(':')) return parseFloat(t) || 0;
             const [h, m] = t.split(':').map(Number);
@@ -225,7 +209,6 @@
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         }
 
-        // 2. GESTIÓN DE TARDE OBLIGATORIA
         function actualizarEstadoTarde(rowId, isChecked, container = document) {
             const inputIn = container.querySelector(`input[name="t_in_${rowId}"]`);
             const inputOut = container.querySelector(`input[name="t_out_${rowId}"]`);
@@ -247,10 +230,8 @@
             }
         }
 
-        // 3. MÁSCARA INTELIGENTE HH:MM
         function initTimeMasks() {
             document.querySelectorAll('.input-mask-time').forEach(input => {
-                // Si el valor es decimal, convertir a HH:MM al cargar
                 if (input.value && !input.value.includes(':')) {
                     input.value = decToHHMM(input.value);
                 }
@@ -292,11 +273,9 @@
             });
         }
 
-        // Inicialización general
         initTimeMasks();
         initTardeCheckboxes();
 
-        // Reinicializar cuando se abren los acordiones de periodos especiales
         const accordion = document.getElementById('accordionEspeciales');
         if (accordion) {
             accordion.addEventListener('shown.bs.collapse', function() {
