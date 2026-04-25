@@ -34,7 +34,6 @@ class ConfiguracionHorario(models.Model):
     def get_dias_list(self, attr):
         campo = getattr(self, attr)
         if not campo: return []
-        # Limpia espacios y asegura que son dígitos antes de convertir a int
         return [int(d.strip()) for d in str(campo).split(',') if d.strip().isdigit()]
 
 class HorarioDefecto(models.Model):
@@ -92,7 +91,6 @@ class HorarioEspecial(models.Model):
         return [int(d.strip()) for d in str(self.dias_obligatorios_tarde).split(',') if d.strip().isdigit()]
 
     def get_dias_list_tarde(self):
-        """Alias para mantener compatibilidad con la View"""
         return self.get_dias_list_oblig()
 
     def get_dias_list_tele(self):
@@ -118,7 +116,6 @@ class SaldoDias(models.Model):
     vacaciones_totales = models.IntegerField(default=22)
     asuntos_propios_totales = models.IntegerField(default=6)
     
-    # Estos campos se actualizarán desde el service contando eventos del calendario
     vacaciones_disfrutadas = models.IntegerField(default=0)
     asuntos_disfrutados = models.IntegerField(default=0)
 
@@ -137,3 +134,23 @@ class SaldoDias(models.Model):
     @property
     def asuntos_restantes(self):
         return max(0, self.asuntos_propios_totales - self.asuntos_disfrutados)
+
+class FestivoEspecial(models.Model):
+    DIAS = HorarioDefecto.DIAS
+    MESES = [
+        (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+        (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+        (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
+    ]
+    nombre = models.CharField(max_length=100)
+    dia = models.PositiveSmallIntegerField()
+    mes = models.PositiveSmallIntegerField(choices=MESES)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ['dia', 'mes', 'usuario']
+        verbose_name = "Festivo Especial"
+        verbose_name_plural = "Festivos Especiales"
+
+    def __str__(self):
+        return f"{self.nombre} ({self.dia}/{self.get_mes_display()})"

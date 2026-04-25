@@ -1,6 +1,6 @@
 from datetime import time, date, timedelta
 from typing import Optional, Dict, Any, Union
-from apps.opciones.models import ConfiguracionHorario, HorarioEspecial
+from apps.opciones.models import ConfiguracionHorario, HorarioEspecial, FestivoEspecial
 
 class HorarioService:
     """Servicio centrado en cálculos de horas y jornadas semanales respetando restricciones de Opciones."""
@@ -42,26 +42,32 @@ class HorarioService:
 
     @classmethod
     def calcular_horas_reales(cls, reg, config, fecha: date) -> tuple[float, float]:
-        """Calcula horas de mañana y tarde aplicando topes, límites y horas por festivo/permiso."""
+        """Calcula horas de mañana y tarde aplicando topes, límites y horas por festivos (oficiales, manuales y recurrentes)."""
         from apps.calendario.models import EventoCalendario
         
-        # 1. Verificar si el día es festivo o tiene un permiso (VAC/ASU/etc) en el calendario
-        evento = EventoCalendario.objects.filter(usuario=reg.usuario, fecha=fecha).first()
-        es_festivo_oficial = False
+        # 1. Comprobación de Festivo/Permiso para computar horas automáticas
         
-        # También comprobamos festivos oficiales para que computen según la configuración
+        # A. Evento manual en el calendario (VAC, ASU, etc)
+        evento = EventoCalendario.objects.filter(usuario=reg.usuario, fecha=fecha).first()
+        
+        # B. Festivo oficial (Holidays)
         import holidays
         festivos_oficiales = holidays.CountryHoliday('ES', prov='GA', years=fecha.year)
-        if fecha in festivos_oficiales:
-            es_festivo_oficial = True
+        es_festivo_oficial = fecha in festivos_oficiales
+        
+        # C. Festivo Especial/Recurrente (Configurado en Opciones)
+        es_festivo_recurrente = FestivoEspecial.objects.filter(
+            usuario=reg.usuario, 
+            dia=fecha.day, 
+            mes=fecha.month
+        ).exists()
 
-        # Si el día está marcado en el calendario o es festivo oficial, aplicamos las horas configuradas
-        if evento or es_festivo_oficial:
-            # Usamos el nuevo campo dinámico de la configuración (o 7.5 por defecto si no existe)
+        # Si el día es festivo por cualquiera de las 3 vías, aplicamos horas configuradas
+        if evento or es_festivo_oficial or es_festivo_recurrente:
             horas_computables = getattr(config, 'horas_festivo', 7.5)
             return round(horas_computables, 2), 0.0
 
-        # 2. Si es un día laboral normal, procedemos con el cálculo de fichajes
+        # 2. Cálculo para día laboral normal (Fichajes)
         h_m = 0.0
         if reg.m_in and reg.m_out:
             mi = cls.hhmm_a_decimal(reg.m_in)
@@ -95,7 +101,7 @@ class HorarioService:
 
     @classmethod
     def calcular_total_dia(cls, registro) -> float:
-        """Reponemos este método para compatibilidad con la app Calendario."""
+        """Calcula el total diario sumando mañana y tarde."""
         if not registro:
             return 0.0
         config = cls.obtener_config_por_fecha(registro.usuario, registro.fecha)
@@ -104,7 +110,7 @@ class HorarioService:
 
     @classmethod
     def obtener_objetivo_semanal(cls, usuario) -> float:
-        """Calcula el objetivo de horas directamente desde la configuración de Opciones."""
+        """Calcula el objetivo de horas según el periodo actual."""
         config_opc = cls.obtener_config_por_fecha(usuario, date.today())
         if isinstance(config_opc, ConfiguracionHorario):
             return config_opc.horas_semanales_estandar
@@ -112,7 +118,7 @@ class HorarioService:
 
     @classmethod
     def obtener_datos_semana(cls, fecha_referencia: date, usuario) -> Dict[str, Any]:
-        """Recupera datos de la semana aplicando restricciones."""
+        """Recupera el desglose semanal para la vista de horario."""
         from apps.horario.models import RegistroDiario
 
         lunes = fecha_referencia - timedelta(days=fecha_referencia.weekday())

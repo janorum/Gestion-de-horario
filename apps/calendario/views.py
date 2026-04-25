@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from datetime import datetime
 from .services.calendario_service import CalendarioService
 from .models import EventoCalendario
+# CORRECCIÓN: Importamos FestivoEspecial desde la app opciones
+from apps.opciones.models import FestivoEspecial
 
 class CalendarioView(LoginRequiredMixin, View):
     """Vista principal del calendario con lógica de navegación y filtrado por usuario."""
@@ -26,6 +28,7 @@ class CalendarioView(LoginRequiredMixin, View):
             mes = 12
             año -= 1
 
+        # El service gestionará la lógica de los festivos especiales
         datos = CalendarioService.obtener_mes(año, mes, request.user)
         
         nombres_meses = [
@@ -37,7 +40,7 @@ class CalendarioView(LoginRequiredMixin, View):
             'semanas': datos['semanas'],
             'resumen_anual': datos['resumen_anual'],
             'tipos_opciones': datos['tipos_opciones'],
-            'saldo': datos['saldo'],  # Aquí se pasa el objeto SaldoDias
+            'saldo': datos['saldo'],  # Objeto SaldoDias
             'nombre_mes': nombres_meses[mes-1],
             'año': año,
             'mes': mes,
@@ -73,12 +76,11 @@ class GuardarEventoView(LoginRequiredMixin, View):
                 defaults={'tipo': tipo, 'descripcion': descripcion}
             )
 
-        # Si la petición es AJAX, respondemos con los saldos usando el punto (.) en lugar de corchetes
+        # Respuesta AJAX con saldos actualizados
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d')
             datos = CalendarioService.obtener_mes(fecha_dt.year, fecha_dt.month, request.user)
             
-            # CORRECCIÓN AQUÍ: Usamos .vacaciones_restantes en lugar de ['vacaciones_restantes']
             return JsonResponse({
                 'status': 'ok',
                 'vacaciones_restantes': datos['saldo'].vacaciones_restantes,

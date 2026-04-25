@@ -4,7 +4,7 @@ from datetime import date
 from django.db.models import Count
 from typing import Dict, Any, List
 from apps.calendario.models import EventoCalendario
-from apps.opciones.models import SaldoDias
+from apps.opciones.models import SaldoDias, FestivoEspecial
 
 class CalendarioService:
     """Servicio maestro para la gestión de eventos y cálculo de saldos disponibles."""
@@ -29,14 +29,10 @@ class CalendarioService:
 
     @classmethod
     def actualizar_y_obtener_saldos(cls, usuario):
-        """
-        Lógica centralizada: Cuenta los eventos en el calendario y 
-        actualiza el saldo en la tabla de Opciones.
-        """
+        """Lógica centralizada: Sincroniza días gastados con la tabla SaldoDias."""
         anio_actual = date.today().year
         saldo, _ = SaldoDias.objects.get_or_create(usuario=usuario, anio=anio_actual)
         
-        # Contamos cuántos eventos de tipo VAC y ASU tiene el usuario este año
         eventos = EventoCalendario.objects.filter(
             usuario=usuario, 
             fecha__year=anio_actual
@@ -46,12 +42,11 @@ class CalendarioService:
         asu_gastados = 0
         
         for e in eventos:
-            if e['tipo'] == 'VACACIONES' or e['tipo'] == 'VAC':
+            if e['tipo'] in ['VACACIONES', 'VAC']:
                 vac_gastadas = e['total']
-            elif e['tipo'] == 'ASUNTOS_PROPIOS' or e['tipo'] == 'ASU':
+            elif e['tipo'] in ['ASUNTOS_PROPIOS', 'ASU']:
                 asu_gastados = e['total']
         
-        # Sincronizamos con el modelo de Opciones
         saldo.vacaciones_disfrutadas = vac_gastadas
         saldo.asuntos_disfrutados = asu_gastados
         saldo.save()
@@ -60,7 +55,6 @@ class CalendarioService:
 
     @classmethod
     def obtener_mes(cls, año: int, mes: int, usuario: Any) -> Dict[str, Any]:
-        # Importación diferida para evitar ciclos si HorarioService usa este service
         from apps.horario.services.horario_service import HorarioService
         from apps.horario.models import RegistroDiario
         
@@ -68,17 +62,38 @@ class CalendarioService:
         cal = calendar.Calendar(firstweekday=0)
         mes_it = cal.monthdatescalendar(año, mes)
         
+        # 1. Festivos Oficiales (Holidays)
         festivos_oficiales = holidays.CountryHoliday('ES', prov='GA', years=año)
-        eventos_db = EventoCalendario.objects.filter(fecha__year=año, usuario=usuario)
-        
         mapa_eventos = {}
         for fecha, nombre in festivos_oficiales.items():
-            mapa_eventos[fecha] = {'tipo': 'FESTIVO', 'label': 'FESTIVO', 'desc': cls.traducir_festivo(nombre), 'es_oficial': True}
-        
+            mapa_eventos[fecha] = {
+                'tipo': 'FESTIVO', 'label': 'FESTIVO', 
+                'desc': cls.traducir_festivo(nombre), 'es_oficial': True
+            }
+
+        # 2. Festivos Especiales (Recurrentes de la App Opciones)
+        # Buscamos los que coincidan con el mes que estamos visualizando
+        especiales = FestivoEspecial.objects.filter(usuario=usuario, mes=mes)
+        for esp in especiales:
+            try:
+                fecha_esp = date(año, esp.mes, esp.dia)
+                # Solo lo añadimos si no hay ya un festivo oficial ese día
+                if fecha_esp not in mapa_eventos:
+                    mapa_eventos[fecha_esp] = {
+                        'tipo': 'FESTIVO', 'label': 'FESTIVO', 
+                        'desc': esp.nombre, 'es_oficial': True
+                    }
+            except ValueError:
+                continue
+
+        # 3. Eventos manuales de la base de datos (Calendario)
+        eventos_db = EventoCalendario.objects.filter(fecha__year=año, usuario=usuario)
         for e in eventos_db:
             tipo_key = 'FESTIVO_EXTRA' if e.tipo == 'FESTIVO' else e.tipo
+            # Los eventos manuales sobreescriben visualmente si existen
             mapa_eventos[e.fecha] = {
-                'tipo': tipo_key, 'label': e.get_tipo_display(), 'desc': e.descripcion, 'es_oficial': False, 'id': e.id
+                'tipo': tipo_key, 'label': e.get_tipo_display(), 
+                'desc': e.descripcion, 'es_oficial': False, 'id': e.id
             }
 
         meses_nombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -112,7 +127,6 @@ class CalendarioService:
                 })
             semanas.append(dias_semana)
         
-        # LLAMADA AL MÉTODO DE SALDOS PROPIO
         saldo_actual = cls.actualizar_y_obtener_saldos(usuario)
             
         return {
