@@ -2,16 +2,20 @@
 
 {% block content %}
 <div class="row mb-4 align-items-end">
-    <div class="col-md-4">
+    <div class="col-md-5">
         <label class="form-label small fw-bold text-muted text-uppercase">Seleccionar Fecha</label>
-        <form method="GET" class="d-flex gap-2">
-            <input type="date" name="fecha" class="form-control shadow-sm" value="{{ fecha_ref|date:'Y-m-d' }}">
-            <button type="submit" class="btn btn-primary px-4 shadow-sm">Ir</button>
+        <form id="form-fecha" method="GET" class="d-flex gap-2">
+            <input type="date" name="fecha" id="input-fecha" class="form-control shadow-sm" 
+                   value="{{ fecha_ref|date:'Y-m-d' }}" onchange="this.form.submit()">
+            
+            <a href="?fecha={{ fecha_hoy|date:'Y-m-d' }}" class="btn btn-outline-primary shadow-sm d-flex align-items-center" title="Ir a hoy">
+                <i class="bi bi-calendar-event me-2"></i> Hoy
+            </a>
         </form>
     </div>
-    <div class="col-md-8 text-end">
+    <div class="col-md-7 text-end">
         <h5 class="fw-bold text-dark mb-1">Semana del {{ lunes|date:"d M Y" }}</h5>
-        <span class="badge bg-light text-primary border">Objetivo Semanal: <span id="val-objetivo">{{ obj_sem_str }}</span>h</span>
+        <span class="badge bg-light text-primary border border-primary-subtle">Objetivo Semanal: <span id="val-objetivo">{{ obj_sem_str }}</span>h</span>
     </div>
 </div>
 
@@ -35,32 +39,40 @@
                         <tr class="row-dia {% if item.es_festivo %}fila-festivo{% endif %}" 
                             data-fecha="{{ item.fecha|date:'Y-m-d' }}" 
                             data-nombre="{{ item.nombre }}"
-                            data-festivo="{{ item.es_festivo|yesno:'true,false' }}">
+                            data-festivo="{{ item.es_festivo|yesno:'true,false' }}"
+                            data-teletrabajo="{{ item.es_teletrabajo|yesno:'true,false' }}"
+                            data-tiene-tarde="{{ item.tiene_tarde|yesno:'true,false' }}">
                             
                             <td class="text-start ps-4">
-                                <div class="fw-bold text-dark">{{ item.nombre }}</div>
+                                <div class="fw-bold text-dark">{{ item.nombre }} 
+                                    {% if item.es_teletrabajo %}<i class="bi bi-house-door-fill text-info ms-1" title="Teletrabajo"></i>{% endif %}
+                                </div>
                                 <div class="small text-muted">{{ item.fecha|date:"d/m/Y" }}</div>
-                                {% if item.es_festivo %}
-                                    <span class="badge bg-secondary x-small text-uppercase">{{ item.tipo_evento }}</span>
-                                {% endif %}
                             </td>
 
                             {% if item.es_festivo %}
-                                <td colspan="2" class="text-muted small">Jornada Automática</td>
-                                <td class="bg-light fw-bold text-primary subtotal-m-celda">07:30</td>
+                                <td colspan="2" class="text-muted small italic">Festivo / Evento</td>
+                                <td class="bg-light fw-bold text-primary">07:30</td>
                                 <td colspan="2" class="text-muted small">-</td>
-                                <td class="bg-light fw-bold text-primary subtotal-t-celda">00:00</td>
+                                <td class="bg-light fw-bold text-primary">00:00</td>
                             {% else %}
                                 <td><input type="time" name="m_in" class="time-input input-val w-100 text-center border-0 bg-transparent" value="{{ item.reg.m_in|time:'H:i' }}"></td>
                                 <td><input type="time" name="m_out" class="time-input input-val w-100 text-center border-0 bg-transparent" value="{{ item.reg.m_out|time:'H:i' }}"></td>
-                                <td class="bg-light fw-bold text-primary subtotal-m-celda">{{ item.total_m_str }}</td>
-                                <td><input type="time" name="t_in" class="time-input input-val w-100 text-center border-0 bg-transparent" value="{{ item.reg.t_in|time:'H:i' }}"></td>
-                                <td><input type="time" name="t_out" class="time-input input-val w-100 text-center border-0 bg-transparent" value="{{ item.reg.t_out|time:'H:i' }}"></td>
-                                <td class="bg-light fw-bold text-primary subtotal-t-celda">{{ item.total_t_str }}</td>
+                                <td class="bg-light fw-bold text-primary subtotal-m-celda">00:00</td>
+                                
+                                <td>
+                                    <input type="time" name="t_in" class="time-input input-val w-100 text-center border-0 {% if not item.tiene_tarde %}input-disabled{% else %}bg-transparent{% endif %}" 
+                                           value="{{ item.reg.t_in|time:'H:i' }}" {% if not item.tiene_tarde %}disabled{% endif %}>
+                                </td>
+                                <td>
+                                    <input type="time" name="t_out" class="time-input input-val w-100 text-center border-0 {% if not item.tiene_tarde %}input-disabled{% else %}bg-transparent{% endif %}" 
+                                           value="{{ item.reg.t_out|time:'H:i' }}" {% if not item.tiene_tarde %}disabled{% endif %}>
+                                </td>
+                                <td class="bg-light fw-bold text-primary subtotal-t-celda">00:00</td>
                             {% endif %}
 
                             <td class="pe-4">
-                                <span class="badge bg-dark fs-6 total-dia-celda">{{ item.total_dia_str }}</span>
+                                <span class="badge bg-dark fs-6 total-dia-celda">00:00</span>
                             </td>
                         </tr>
                         {% endfor %}
@@ -68,10 +80,10 @@
                     <tfoot class="table-light border-top">
                         <tr class="fw-bold text-dark">
                             <td colspan="3" class="text-end py-3">TOTALES SEMANALES:</td>
-                            <td class="text-primary" id="footer-total-m">{{ totales_semanales.mañana }}</td>
+                            <td class="text-primary" id="footer-total-m">00:00</td>
                             <td colspan="2"></td>
-                            <td class="text-primary" id="footer-total-t">{{ totales_semanales.tarde }}</td>
-                            <td class="pe-4 fs-5" id="footer-total-gen">{{ totales_semanales.total }}</td>
+                            <td class="text-primary" id="footer-total-t">00:00</td>
+                            <td class="pe-4 fs-5" id="footer-total-gen">00:00</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -81,21 +93,17 @@
         <div class="alertas-dinamicas mt-3"></div>
 
         <div class="row mt-4">
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <div class="card p-3 border-start border-success border-5 shadow-sm text-center">
-                    <small class="text-muted text-uppercase fw-bold">Realizado</small>
-                    <div class="h4 fw-bold mb-0 text-success" id="kpi-realizado">{{ totales_semanales.total }}</div>
+                    <small class="text-muted text-uppercase fw-bold">Horas Realizadas</small>
+                    <div class="h3 fw-bold mb-0 text-success" id="kpi-realizado">00:00</div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card p-3 border-start border-info border-5 shadow-sm text-center">
-                    <small class="text-muted text-uppercase fw-bold">Diferencia</small>
-                    <div class="h4 fw-bold mb-0 text-info" id="kpi-diferencia">{{ faltan_str }}</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div id="kpi-status-card" class="card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center">
-                    <div class="fw-bold text-uppercase" id="kpi-status-text"></div>
+            <div class="col-md-6">
+                <div id="kpi-status-card" class="card p-3 shadow-sm border-0 text-center h-100 d-flex flex-column justify-content-center transition-all">
+                    <small id="kpi-label-dif" class="text-uppercase fw-bold opacity-75">Diferencia</small>
+                    <div class="h3 fw-bold mb-0" id="kpi-diferencia">00:00</div>
+                    <div class="small fw-bold text-uppercase mt-1" id="kpi-status-text">HORAS PENDIENTES</div>
                 </div>
             </div>
         </div>
@@ -103,20 +111,22 @@
 </div>
 
 <script>
-// CONFIGURACIÓN RECUPERADA DE OPCIONES
 const CONFIG = {
     inicio_conteo: "{{ config.hora_inicio_conteo|time:'H:i' }}",
     tope_m: "{{ config.max_hora_manana|time:'H:i' }}",
     tope_t: "{{ config.max_hora_tarde|time:'H:i' }}",
     oblig_m_in: "{{ config.oblig_manana_in|time:'H:i' }}",
     oblig_m_out: "{{ config.oblig_manana_out|time:'H:i' }}",
-    descanso_min: parseInt("{{ config.minutos_descanso }}") || 0
+    descanso_min: parseInt("{{ config.minutos_descanso }}") || 0,
+    limite_m_presencial: parseFloat("{{ config.max_horas_manana_presencial }}".replace(',', '.')) * 60,
+    limite_m_tele: parseFloat("{{ config.max_horas_manana_teletrabajo }}".replace(',', '.')) * 60,
+    limite_tarde: parseFloat("{{ config.max_horas_tarde }}".replace(',', '.')) * 60
 };
 
 function parseTime(hhmm) {
-    if (!hhmm || hhmm === "00:00") return 0;
-    const [h, m] = hhmm.split(':').map(Number);
-    return (h * 60) + (m || 0);
+    if (!hhmm || hhmm === "") return 0;
+    const parts = hhmm.split(':');
+    return (parseInt(parts[0]) * 60) + (parseInt(parts[1]) || 0);
 }
 
 function formatTime(minutosTotal) {
@@ -126,188 +136,146 @@ function formatTime(minutosTotal) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-async function recalcularPantalla() {
-    let sumTotalMin = 0;
-    let sumM = 0;
-    let sumT = 0;
+function recalcularPantalla() {
+    let sumTotalMin = 0, sumM = 0, sumT = 0;
     let msjs = [];
     const alertasCont = document.querySelector('.alertas-dinamicas');
-    alertasCont.innerHTML = "";
-
+    
     document.querySelectorAll('.row-dia').forEach(row => {
         const diaNom = row.dataset.nombre;
         const esFestivo = row.dataset.festivo === "true";
+        const esTele = row.dataset.teletrabajo === "true";
         
-        // Reset de estilos por fila
         row.classList.remove('fila-incumple');
-        row.querySelectorAll('.input-val').forEach(i => i.classList.remove('warn-ignore', 'text-danger', 'fw-bold'));
+        row.querySelectorAll('.time-input:not([disabled])').forEach(i => i.classList.remove('warn-ignore', 'text-danger', 'fw-bold'));
 
         if (esFestivo) {
-            sumM += 450; // 7.5h
-            sumTotalMin += 450;
+            sumM += 450; sumTotalMin += 450;
             return;
         }
 
-        const miEl = row.querySelector('[name="m_in"]');
-        const moEl = row.querySelector('[name="m_out"]');
+        const miVal = row.querySelector('[name="m_in"]').value;
+        const moVal = row.querySelector('[name="m_out"]').value;
         const tiEl = row.querySelector('[name="t_in"]');
         const toEl = row.querySelector('[name="t_out"]');
 
-        const mi = parseTime(miEl.value);
-        const mo = parseTime(moEl.value);
-        const ti = parseTime(tiEl.value);
-        const to = parseTime(toEl.value);
+        const mi = parseTime(miVal);
+        const mo = parseTime(moVal);
+        const ti = tiEl ? parseTime(tiEl.value) : 0;
+        const to = toEl ? parseTime(toEl.value) : 0;
 
-        let hM = 0;
-        let hT = 0;
-        let diaIncumple = false;
+        let hM = 0, hT = 0, tieneError = false;
 
-        // LÓGICA MAÑANA
+        // LÓGICA MAÑANA (Sincronizada con Opciones)
         if (mi > 0 && mo > 0) {
-            // Validar Horario Obligatorio
             if (mi > parseTime(CONFIG.oblig_m_in)) {
-                miEl.classList.add('text-danger', 'fw-bold');
-                msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>${diaNom}</strong>: Entrada posterior a hora obligatoria (${CONFIG.oblig_m_in}).`);
-                diaIncumple = true;
+                row.querySelector('[name="m_in"]').classList.add('text-danger', 'fw-bold');
+                msjs.push(`<i class="bi bi-exclamation-circle-fill text-danger"></i> <strong>${diaNom}</strong>: Entrada posterior a hora obligatoria (${CONFIG.oblig_m_in}).`);
+                tieneError = true;
             }
             if (mo < parseTime(CONFIG.oblig_m_out)) {
-                moEl.classList.add('text-danger', 'fw-bold');
-                msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>${diaNom}</strong>: Salida anterior a hora obligatoria (${CONFIG.oblig_m_out}).`);
-                diaIncumple = true;
+                row.querySelector('[name="m_out"]').classList.add('text-danger', 'fw-bold');
+                msjs.push(`<i class="bi bi-exclamation-circle-fill text-danger"></i> <strong>${diaNom}</strong>: Salida anterior a hora obligatoria (${CONFIG.oblig_m_out}).`);
+                tieneError = true;
             }
 
-            // Advertencias de Conteo (Gris/Azul)
-            if (mi < parseTime(CONFIG.inicio_conteo)) miEl.classList.add('warn-ignore');
-            if (mo > parseTime(CONFIG.tope_m)) moEl.classList.add('warn-ignore');
+            if (mi < parseTime(CONFIG.inicio_conteo)) row.querySelector('[name="m_in"]').classList.add('warn-ignore');
+            if (mo > parseTime(CONFIG.tope_m)) row.querySelector('[name="m_out"]').classList.add('warn-ignore');
 
             const startM = Math.max(mi, parseTime(CONFIG.inicio_conteo));
             const endM = Math.min(mo, parseTime(CONFIG.tope_m));
             hM = Math.max(0, endM - startM);
+
+            const limitM = esTele ? CONFIG.limite_m_tele : CONFIG.limite_m_presencial;
+            if (hM > limitM) hM = limitM;
         }
 
-        // LÓGICA TARDE
-        if (ti > 0 && to > 0) {
+        // LÓGICA TARDE (Sincronizada con Opciones)
+        if (tiEl && !tiEl.disabled && ti > 0 && to > 0) {
             const inicioLegalT = mo + CONFIG.descanso_min;
+            
             if (ti < inicioLegalT) {
                 tiEl.classList.add('warn-ignore');
-                msjs.push(`<i class="bi bi-info-circle text-primary"></i> <strong>${diaNom}</strong>: Descanso insuficiente. Tarde cuenta desde ${formatTime(inicioLegalT)}.`);
+                msjs.push(`<i class="bi bi-info-circle-fill text-primary"></i> <strong>${diaNom}</strong>: Descanso insuficiente. Tarde cuenta desde las ${formatTime(inicioLegalT)}.`);
             }
-            if (to > parseTime(CONFIG.tope_t)) toEl.classList.add('warn-ignore');
+            
+            if (to > parseTime(CONFIG.tope_t)) {
+                toEl.classList.add('warn-ignore');
+                msjs.push(`<i class="bi bi-exclamation-triangle-fill text-warning"></i> <strong>${diaNom}</strong>: Salida superior al tope de tarde (${CONFIG.tope_t}).`);
+            }
 
-            const startT = Math.max(ti, parseTime(CONFIG.inicio_conteo), inicioLegalT);
+            const startT = Math.max(ti, parseTime(CONFIG.tope_m), inicioLegalT);
             const endT = Math.min(to, parseTime(CONFIG.tope_t));
             hT = Math.max(0, endT - startT);
+
+            if (hT > CONFIG.limite_tarde) hT = CONFIG.limite_tarde;
         }
 
-        if (diaIncumple) row.classList.add('fila-incumple');
+        if (tieneError) row.classList.add('fila-incumple');
 
-        sumM += hM;
-        sumT += hT;
-        sumTotalMin += (hM + hT);
+        sumM += hM; sumT += hT; sumTotalMin += (hM + hT);
 
-        // Actualizar celdas del día
         row.querySelector('.subtotal-m-celda').innerText = formatTime(hM);
         row.querySelector('.subtotal-t-celda').innerText = formatTime(hT);
         row.querySelector('.total-dia-celda').innerText = formatTime(hM + hT);
     });
 
-    // TOTALES GLOBALES
-    const objetivoMin = parseTime(document.getElementById('val-objetivo').innerText + ":00");
-    
+    const objMin = parseTime(document.getElementById('val-objetivo').innerText + ":00");
     document.getElementById('footer-total-m').innerText = formatTime(sumM);
     document.getElementById('footer-total-t').innerText = formatTime(sumT);
     document.getElementById('footer-total-gen').innerText = formatTime(sumTotalMin);
     document.getElementById('kpi-realizado').innerText = formatTime(sumTotalMin);
     
-    const dif = objetivoMin - sumTotalMin;
-    document.getElementById('kpi-diferencia').innerText = dif > 0 ? formatTime(dif) : "00:00";
+    const dif = objMin - sumTotalMin;
+    const kpiCard = document.getElementById('kpi-status-card');
+    const kpiDifText = document.getElementById('kpi-diferencia');
+    const kpiStatusText = document.getElementById('kpi-status-text');
+    const kpiLabel = document.getElementById('kpi-label-dif');
 
-    const card = document.getElementById('kpi-status-card');
-    const txt = document.getElementById('kpi-status-text');
-    
-    if (sumTotalMin >= objetivoMin) {
-        card.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center bg-success text-white";
-        txt.innerText = "¡Objetivo Cumplido!";
+    if (sumTotalMin >= objMin) {
+        kpiCard.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex flex-column justify-content-center bg-success text-white";
+        kpiDifText.innerText = formatTime(sumTotalMin - objMin);
+        kpiLabel.innerText = "Exceso Semanal";
+        kpiStatusText.innerText = "¡OBJETIVO CUMPLIDO!";
     } else {
-        card.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex justify-content-center bg-warning text-dark";
-        txt.innerText = "Horas Pendientes";
-        msjs.push(`<i class="bi bi-exclamation-octagon-fill text-danger"></i> <strong>Resumen Semanal</strong>: Faltan ${formatTime(dif)} para el objetivo.`);
+        kpiCard.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex flex-column justify-content-center bg-warning text-dark";
+        kpiDifText.innerText = formatTime(dif);
+        kpiLabel.innerText = "Faltan";
+        kpiStatusText.innerText = "HORAS PENDIENTES";
     }
 
-    if (msjs.length > 0) {
-        alertasCont.innerHTML = `<div class="alert alert-custom shadow-sm border-0 py-2 small"><ul class="mb-0 list-unstyled">${msjs.map(m=>`<li>${m}</li>`).join('')}</ul></div>`;
-    }
+    alertasCont.innerHTML = msjs.length > 0 
+        ? `<div class="alert alert-custom shadow-sm border-0 py-2 small animate__animated animate__fadeIn"><ul class="mb-0 list-unstyled">${msjs.map(m=>`<li class="py-1">${m}</li>`).join('')}</ul></div>`
+        : "";
 }
 
 document.querySelectorAll('.time-input').forEach(input => {
+    input.addEventListener('input', recalcularPantalla); 
     input.addEventListener('change', async function() {
+        if (this.disabled) return;
         const tr = this.closest('tr');
-        const payload = {
-            fecha: tr.dataset.fecha,
-            campo: this.name,
-            valor: this.value
-        };
-
+        const payload = { fecha: tr.dataset.fecha, campo: this.name, valor: this.value };
         try {
-            const res = await fetch('/horario/api/guardar/', {
+            await fetch('/horario/api/guardar/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                 body: JSON.stringify(payload)
             });
-
-            const data = await res.json();
-            if (data.status === 'success') {
-                recalcularPantalla();
-            } else {
-                alert(data.message || "Error al guardar");
-            }
-        } catch (err) {
-            console.error("Error al guardar:", err);
-        }
+        } catch (err) { console.error("Error al guardar:", err); }
     });
 });
 
-// Al cargar la página
 document.addEventListener('DOMContentLoaded', recalcularPantalla);
 </script>
 
 <style>
-/* FILA FESTIVO/LICENCIA */
-.fila-festivo td { 
-    background-color: #f8f9fa !important; 
-    color: #adb5bd !important; 
-}
-.fila-festivo .subtotal-m-celda { 
-    background-color: #e9ecef !important; 
-    color: #6c757d !important; 
-}
-
-/* FILA CON INCUMPLIMIENTO GRAVE */
-#tabla-horarios .fila-incumple td {
-    background-color: #fff1f1 !important;
-}
-#tabla-horarios .fila-incumple td.bg-light {
-    background-color: #ffe5e5 !important;
-}
-
-/* ADVERTENCIA CONTEO (NO COMPUTA) */
-.warn-ignore { 
-    background-color: #f1f3f5 !important; 
-    color: #0d6efd !important; 
-    text-decoration: underline dotted #adb5bd !important;
-}
-
-/* TEXTOS Y ALERTAS */
-.text-danger { color: #dc3545 !important; font-weight: bold; }
-.alert-custom { 
-    background-color: #fffafa; 
-    color: #333; 
-    border-left: 5px solid #dc3545 !important;
-}
-.alert-custom i.text-danger { color: #dc3545 !important; }
-.alert-custom i.bi-info-circle { color: #0d6efd !important; }
+.fila-festivo td { background-color: #f8f9fa !important; color: #adb5bd !important; }
+#tabla-horarios .fila-incumple td { background-color: #fff1f1 !important; }
+#tabla-horarios .fila-incumple td.bg-light { background-color: #ffe5e5 !important; }
+.fila-incumple input { color: #dc3545 !important; font-weight: bold; }
+.warn-ignore { background-color: #f1f3f5 !important; color: #0d6efd !important; text-decoration: underline dotted #adb5bd !important; }
+.alert-custom { background-color: #fffafa; border-left: 5px solid #dc3545 !important; }
+.input-disabled { background-color: #f8f9fa !important; cursor: not-allowed; color: #dee2e6 !important; }
+.transition-all { transition: all 0.3s ease; }
 </style>
 {% endblock %}

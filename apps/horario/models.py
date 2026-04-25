@@ -23,21 +23,32 @@ class HorarioDefecto(models.Model):
         unique_together = ['usuario', 'dia']
 
 class RegistroDiario(models.Model):
-    """Fichajes diarios de cada usuario."""
+    """Fichajes diarios reales de cada usuario con almacenamiento de cálculos."""
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='registros_diarios')
     fecha = models.DateField()
+    
+    # Fichajes introducidos por el usuario
     m_in = models.TimeField(null=True, blank=True)
     m_out = models.TimeField(null=True, blank=True)
     t_in = models.TimeField(null=True, blank=True)
     t_out = models.TimeField(null=True, blank=True)
+    
+    # Metadatos del día (Juez de las reglas)
     categoria = models.CharField(max_length=50, null=True, blank=True)
+    es_teletrabajo = models.BooleanField(default=False)
+    es_periodo_especial = models.BooleanField(default=False)
+    
+    # Cálculos persistentes (para informes y coherencia de alertas)
+    horas_m = models.FloatField(default=0.0)
+    horas_t = models.FloatField(default=0.0)
 
     class Meta:
         ordering = ['-fecha']
         unique_together = ['usuario', 'fecha']
 
     def __str__(self):
-        return f"{self.usuario.username} - {self.fecha}"
+        total = self.horas_m + self.horas_t
+        return f"{self.usuario.username} - {self.fecha} ({total}h)"
 
 class PeriodoEspecial(models.Model):
     """Configuraciones de jornada de verano, navidad, etc."""
@@ -56,20 +67,3 @@ class PeriodoEspecial(models.Model):
 
     class Meta:
         unique_together = ['usuario', 'nombre']
-
-class ReduccionHijos(models.Model):
-    """Configuración de reducción de jornada por usuario."""
-    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='reduccion_jornada')
-    porcentaje = models.IntegerField(default=0) 
-    m_in = models.TimeField(default="08:00")
-    m_out = models.TimeField(default="14:00")
-    t_in = models.TimeField(null=True, blank=True)
-    t_out = models.TimeField(null=True, blank=True)
-    activa = models.BooleanField(default=False)
-
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        self.activa = self.porcentaje > 0
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Reducción {self.usuario.username} ({self.porcentaje}%)"
