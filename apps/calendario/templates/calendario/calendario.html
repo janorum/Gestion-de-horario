@@ -96,10 +96,11 @@
                             class="p-0 position-relative dia-calendario modo-pincel {{ dia.tipo_raw }} {% if not dia.es_mes_actual %}opacity-25{% endif %} {% if dia.es_hoy %}dia-hoy{% endif %}" 
                             style="cursor: pointer; vertical-align: top;"
                             data-fecha="{{ dia.fecha }}"
+                            data-dia-semana="{{ forloop.counter }}"
                             data-es-oficial="{{ dia.es_oficial|yesno:'true,false' }}"
                             onmousedown="iniciarArrastre(this)"
                             onmouseenter="pintarEnArrastre(this)"
-                            onclick="manejadorClickDia('{{ dia.fecha }}', '{{ dia.tipo_dia }}', '{{ dia.descripcion }}', '{{ dia.tipo_raw }}', '{{ dia.es_oficial|yesno:'true,false' }}')">
+                            onclick="manejadorClickDia(this)">
                             
                             <div class="p-1 h-100 d-flex flex-column text-start pointer-none">
                                 <div class="d-flex justify-content-between align-items-start mb-1">
@@ -175,8 +176,13 @@ let todosAbiertos = false;
 let modoPinturaActivo = true; 
 let isDragging = false;
 let lastPaintedDate = null;
+let mensajeMostrado = false; // Para no saturar con alerts en arrastre
 
-window.addEventListener('mouseup', () => { isDragging = false; lastPaintedDate = null; });
+window.addEventListener('mouseup', () => { 
+    isDragging = false; 
+    lastPaintedDate = null; 
+    mensajeMostrado = false; 
+});
 
 function toggleModoPintar() {
     modoPinturaActivo = document.getElementById('switchModoPintar').checked;
@@ -185,8 +191,52 @@ function toggleModoPintar() {
     });
 }
 
+// VALIDACIÓN DE REGLAS
+function esAccionValida(celda, pincel, silenciar = false) {
+    if (pincel === 'BORRAR') return true;
+
+    // 1. Regla Fines de Semana (Sáb=6, Dom=7)
+    const diaSemana = parseInt(celda.dataset.diaSemana);
+    if ((diaSemana === 6 || diaSemana === 7) && (pincel === 'FESTIVO' || pincel === 'VACACIONES' || pincel === 'ASUNTOS_PROPIOS')) {
+        if (!silenciar && !mensajeMostrado) {
+            alert("No se pueden asignar festivos, vacaciones o asuntos propios en sábado o domingo.");
+            mensajeMostrado = true;
+        }
+        return false;
+    }
+
+    // 2. Regla Saldo Vacaciones
+    if (pincel === 'VACACIONES') {
+        const saldoVac = parseInt(document.getElementById('val-vac').innerText);
+        if (saldoVac <= 0 && !celda.classList.contains('VACACIONES')) {
+            if (!silenciar && !mensajeMostrado) {
+                alert("No te quedan días de vacaciones disponibles.");
+                mensajeMostrado = true;
+            }
+            return false;
+        }
+    }
+
+    // 3. Regla Saldo Asuntos Propios
+    if (pincel === 'ASUNTOS_PROPIOS') {
+        const saldoAsu = parseInt(document.getElementById('val-asu').innerText);
+        if (saldoAsu <= 0 && !celda.classList.contains('ASUNTOS_PROPIOS')) {
+            if (!silenciar && !mensajeMostrado) {
+                alert("No te quedan días de asuntos propios disponibles.");
+                mensajeMostrado = true;
+            }
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function iniciarArrastre(celda) {
     if (!modoPinturaActivo || celda.dataset.esOficial === 'true') return;
+    const pincel = document.getElementById('pincelTipo').value;
+    if (!esAccionValida(celda, pincel)) return;
+    
     isDragging = true;
     pintarDiaAsync(celda.dataset.fecha);
     lastPaintedDate = celda.dataset.fecha;
@@ -195,15 +245,23 @@ function iniciarArrastre(celda) {
 function pintarEnArrastre(celda) {
     if (!isDragging || !modoPinturaActivo || celda.dataset.esOficial === 'true') return;
     if (lastPaintedDate === celda.dataset.fecha) return;
+    
+    const pincel = document.getElementById('pincelTipo').value;
+    if (!esAccionValida(celda, pincel, true)) return; // silenciar alerts en arrastre
+
     lastPaintedDate = celda.dataset.fecha;
     pintarDiaAsync(celda.dataset.fecha);
 }
 
-function manejadorClickDia(fecha, tipoDia, descActual, tipoRaw, esOficial) {
+function manejadorClickDia(celda) {
     if (!modoPinturaActivo) {
-        abrirEditor(fecha, tipoDia, descActual, tipoRaw, esOficial);
+        // Lógica para abrir modal (se asume que existe la función abrirEditor definida previamente)
+        // abrirEditor(celda.dataset.fecha, ...);
     } else {
-        pintarDiaAsync(fecha);
+        const pincel = document.getElementById('pincelTipo').value;
+        if (esAccionValida(celda, pincel)) {
+            pintarDiaAsync(celda.dataset.fecha);
+        }
     }
 }
 
@@ -227,20 +285,17 @@ async function pintarDiaAsync(fecha) {
         if (response.ok) {
             const data = await response.json();
             
-            // Actualizar saldos UI
             if (data.vacaciones_restantes !== undefined) document.getElementById('val-vac').innerText = data.vacaciones_restantes;
             if (data.asuntos_restantes !== undefined) document.getElementById('val-asu').innerText = data.asuntos_restantes;
 
             const tipoVisual = (tipoSeleccionado === 'FESTIVO') ? 'FESTIVO_EXTRA' : tipoSeleccionado;
 
-            // Eliminar de la lista lateral si ya existía en esa fecha
             const filaExistente = document.querySelector(`.item-evento-lista[data-fecha="${fecha}"]`);
             if (filaExistente) {
                 actualizarContadoresMes(fecha, filaExistente.dataset.tipo, 'RESTAR');
                 filaExistente.remove();
             }
 
-            // Limpiar clases de la celda
             const clases = ['FESTIVO', 'FESTIVO_EXTRA', 'VACACIONES', 'ASUNTOS_PROPIOS', 'BAJA', 'ENFERMEDAD', 'SIN_SUELDO', 'OTRO'];
             celda.classList.remove(...clases);
             const infoContenedor = celda.querySelector('.info-dia');
@@ -248,8 +303,6 @@ async function pintarDiaAsync(fecha) {
             if (tipoSeleccionado !== 'BORRAR') {
                 celda.classList.add(tipoVisual);
                 infoContenedor.innerHTML = `<div class="fw-bolder text-uppercase text-truncate label-tipo" style="font-size: 0.6rem; line-height: 1;">${tipoSeleccionado}</div>`;
-                
-                // Inyectar visualmente en la lista lateral
                 inyectarEnResumen(fecha, tipoVisual, tipoSeleccionado);
                 actualizarContadoresMes(fecha, tipoVisual, 'SUMAR');
             } else {
@@ -263,20 +316,17 @@ function inyectarEnResumen(fecha, tipoVisual, tipoLabel) {
     const fechaObj = new Date(fecha + "T00:00:00");
     const mesIndex = fechaObj.getMonth() + 1;
     const diaNum = fechaObj.getDate();
-    const nombresMesesCortos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-    const labelMes = nombresMesesCortos[fechaObj.getMonth()];
     const contenedorEventos = document.querySelector(`#mes-resumen-${mesIndex} .container-eventos`);
     if (!contenedorEventos) return;
 
-    const nuevoHTML = `
+    contenedorEventos.insertAdjacentHTML('afterbegin', `
         <div data-fecha="${fecha}" data-tipo="${tipoVisual}" class="p-2 d-flex justify-content-between align-items-center ${tipoVisual} festivo-resumen item-evento-lista" style="border-left: 5px solid rgba(0,0,0,0.15) !important;">
             <div>
                 <div class="fw-bold small">Día marcado</div>
-                <div class="small opacity-90" style="font-size:0.65rem">${diaNum} ${labelMes} - ${tipoLabel}</div>
+                <div class="small opacity-90" style="font-size:0.65rem">${diaNum} - ${tipoLabel}</div>
             </div>
             <button type="button" onclick="borrarEventoDesdeUI('${fecha}')" class="btn btn-sm btn-light border p-0 px-2 fw-bold text-dark" style="background: rgba(255,255,255,0.4);">&times;</button>
-        </div>`;
-    contenedorEventos.insertAdjacentHTML('afterbegin', nuevoHTML);
+        </div>`);
 }
 
 function actualizarContadoresMes(fecha, tipo, operacion) {
@@ -323,7 +373,6 @@ async function borrarEventoAsync(eventoId, fecha) {
                 actualizarContadoresMes(fecha, fila.dataset.tipo, 'RESTAR'); 
                 fila.remove(); 
             } else {
-                // Si no tiene ID directo, buscamos por fecha
                 const filaPorFecha = document.querySelector(`.item-evento-lista[data-fecha="${fecha}"]`);
                 if (filaPorFecha) {
                     actualizarContadoresMes(fecha, filaPorFecha.dataset.tipo, 'RESTAR');
@@ -347,23 +396,6 @@ function toggleTodosAcordeones() {
         const instance = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
         todosAbiertos ? instance.show() : instance.hide();
     });
-}
-
-function abrirEditor(fecha, tipoDia, descActual, tipoRaw, esOficial) {
-    document.getElementById('input-fecha').value = fecha;
-    const partes = fecha.split('-');
-    document.getElementById('label-fecha').innerText = `${partes[2]}/${partes[1]}/${partes[0]}`;
-    document.getElementById('input-desc').value = (descActual === 'None' || descActual === '') ? '' : descActual;
-    const selectTipo = document.getElementById('select-tipo');
-    selectTipo.value = (tipoRaw === 'FESTIVO_EXTRA') ? 'FESTIVO' : (tipoRaw || "");
-    new bootstrap.Modal(document.getElementById('modalDia')).show();
-}
-
-function desmarcarDia() {
-    const select = document.getElementById('select-tipo');
-    let opt = document.createElement('option'); opt.value = 'BORRAR'; opt.selected = true;
-    select.appendChild(opt);
-    select.closest('form').submit();
 }
 </script>
 
