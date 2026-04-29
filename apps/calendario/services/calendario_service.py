@@ -29,28 +29,40 @@ class CalendarioService:
 
     @classmethod
     def actualizar_y_obtener_saldos(cls, usuario):
-        """Lógica centralizada: Sincroniza días gastados con la tabla SaldoDias."""
+        """Lógica centralizada: Sincroniza días gastados con la tabla SaldoDias desglosada."""
         anio_actual = date.today().year
         saldo, _ = SaldoDias.objects.get_or_create(usuario=usuario, anio=anio_actual)
         
+        # Contamos eventos agrupados por tipo para el año actual
         eventos = EventoCalendario.objects.filter(
             usuario=usuario, 
             fecha__year=anio_actual
         ).values('tipo').annotate(total=Count('id'))
         
-        vac_gastadas = 0
+        vac_bloques_gastadas = 0
+        vac_libres_gastadas = 0
         asu_gastados = 0
+        enf_gastados = 0
         
         for e in eventos:
-            if e['tipo'] in ['VACACIONES', 'VAC']:
-                vac_gastadas = e['total']
-            elif e['tipo'] in ['ASUNTOS_PROPIOS', 'ASU']:
+            tipo = e['tipo']
+            # Lógica para Vacaciones (Por defecto a bloques, ajustable según lógica de negocio)
+            if tipo in ['VACACIONES', 'VAC']:
+                vac_bloques_gastadas = e['total']
+            # Lógica para Asuntos Propios
+            elif tipo in ['ASUNTOS_PROPIOS', 'ASU']:
                 asu_gastados = e['total']
+            # Lógica para Enfermedad sin Justificar
+            elif tipo == 'ENFERMEDAD':
+                enf_gastados = e['total']
         
-        saldo.vacaciones_disfrutadas = vac_gastadas
+        # Sincronizamos los campos físicos del modelo SaldoDias
+        saldo.vacaciones_bloques_disfrutadas = vac_bloques_gastadas
+        saldo.vacaciones_libres_disfrutadas = vac_libres_gastadas
         saldo.asuntos_disfrutados = asu_gastados
-        saldo.save()
+        saldo.enfermedad_sin_justificar_disfrutados = enf_gastados
         
+        saldo.save()
         return saldo
 
     @classmethod
@@ -72,12 +84,10 @@ class CalendarioService:
             }
 
         # 2. Festivos Especiales (Recurrentes de la App Opciones)
-        # Buscamos los que coincidan con el mes que estamos visualizando
         especiales = FestivoEspecial.objects.filter(usuario=usuario, mes=mes)
         for esp in especiales:
             try:
                 fecha_esp = date(año, esp.mes, esp.dia)
-                # Solo lo añadimos si no hay ya un festivo oficial ese día
                 if fecha_esp not in mapa_eventos:
                     mapa_eventos[fecha_esp] = {
                         'tipo': 'FESTIVO', 'label': 'FESTIVO', 
@@ -90,7 +100,6 @@ class CalendarioService:
         eventos_db = EventoCalendario.objects.filter(fecha__year=año, usuario=usuario)
         for e in eventos_db:
             tipo_key = 'FESTIVO_EXTRA' if e.tipo == 'FESTIVO' else e.tipo
-            # Los eventos manuales sobreescriben visualmente si existen
             mapa_eventos[e.fecha] = {
                 'tipo': tipo_key, 'label': e.get_tipo_display(), 
                 'desc': e.descripcion, 'es_oficial': False, 'id': e.id
@@ -127,6 +136,7 @@ class CalendarioService:
                 })
             semanas.append(dias_semana)
         
+        # Sincronizamos saldos antes de devolver los datos
         saldo_actual = cls.actualizar_y_obtener_saldos(usuario)
             
         return {

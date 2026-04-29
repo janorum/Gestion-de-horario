@@ -101,12 +101,22 @@ class OpcionesMainView(LoginRequiredMixin, View):
             messages.success(request, f"Festivo '{nombre}' guardado correctamente.")
 
     def _guardar_saldo(self, request):
+        """Guarda los totales anuales desglosados y parámetros de enfermedad."""
         saldo, _ = SaldoDias.objects.get_or_create(usuario=request.user, anio=2026)
-        saldo.vacaciones_totales = int(request.POST.get('vac_totales') or 22)
+        
+        # Desglose de vacaciones
+        saldo.vacaciones_libres_totales = int(request.POST.get('vac_libres') or 4)
+        saldo.vacaciones_bloques_totales = int(request.POST.get('vac_bloques') or 18)
+        
+        # Asuntos propios y Enfermedad sin justificar
         saldo.asuntos_propios_totales = int(request.POST.get('asu_totales') or 6)
+        saldo.enfermedad_sin_justificar_totales = int(request.POST.get('enf_totales') or 3)
+        
         saldo.save()
+        
+        # Sincronización con el calendario para recalcular consumos
         CalendarioService.actualizar_y_obtener_saldos(request.user)
-        messages.success(request, "Totales anuales actualizados.")
+        messages.success(request, "Configuración de saldos y enfermedad actualizada correctamente.")
 
     def _guardar_base(self, request):
         config = ConfiguracionHorario.objects.get(usuario=request.user)

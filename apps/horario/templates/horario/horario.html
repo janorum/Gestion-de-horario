@@ -2,20 +2,32 @@
 
 {% block content %}
 <div class="row mb-4 align-items-end">
-    <div class="col-md-5">
-        <label class="form-label small fw-bold text-muted text-uppercase">Seleccionar Fecha</label>
+    <div class="col-md-6">
+        <label class="form-label small fw-bold text-muted text-uppercase">Navegación Semanal</label>
         <form id="form-fecha" method="GET" class="d-flex gap-2">
-            <input type="date" name="fecha" id="input-fecha" class="form-control shadow-sm" 
-                   value="{{ fecha_ref|date:'Y-m-d' }}" onchange="this.form.submit()">
+            <div class="input-group shadow-sm">
+                <a href="?fecha={{ fecha_anterior }}" class="btn btn-outline-primary d-flex align-items-center" title="Semana anterior">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+                
+                <input type="date" name="fecha" id="input-fecha" class="form-control text-center fw-bold" 
+                       value="{{ fecha_ref|date:'Y-m-d' }}" onchange="this.form.submit()">
+                
+                <a href="?fecha={{ fecha_posterior }}" class="btn btn-outline-primary d-flex align-items-center" title="Semana siguiente">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
             
-            <a href="?fecha={{ fecha_hoy|date:'Y-m-d' }}" class="btn btn-outline-primary shadow-sm d-flex align-items-center" title="Ir a hoy">
-                <i class="bi bi-calendar-event me-2"></i> Hoy
+            <a href="?fecha={{ fecha_hoy|date:'Y-m-d' }}" class="btn btn-primary shadow-sm d-flex align-items-center px-3" title="Ir a hoy">
+                <i class="bi bi-calendar-check me-2"></i> Hoy
             </a>
         </form>
     </div>
-    <div class="col-md-7 text-end">
+    <div class="col-md-6 text-end">
         <h5 class="fw-bold text-dark mb-1">Semana del {{ lunes|date:"d M Y" }}</h5>
-        <span class="badge bg-light text-primary border border-primary-subtle">Objetivo Semanal: <span id="val-objetivo">{{ obj_sem_str }}</span>h</span>
+        <span class="badge bg-light text-primary border border-primary-subtle px-3 py-2">
+            Objetivo Semanal: <span id="val-objetivo" class="fw-bold">{{ obj_sem_str }}</span>h
+        </span>
     </div>
 </div>
 
@@ -51,7 +63,9 @@
                             </td>
 
                             {% if item.es_festivo %}
-                                <td colspan="2" class="text-muted small italic">Festivo / Evento</td>
+                                <td colspan="2" class="text-muted small italic">
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">{{ item.tipo_evento }}</span>
+                                </td>
                                 <td class="bg-light fw-bold text-primary celda-valor-festivo">{{ item.total_m_str }}</td>
                                 <td colspan="2" class="text-muted small">-</td>
                                 <td class="bg-light fw-bold text-primary">00:00</td>
@@ -151,7 +165,6 @@ function recalcularPantalla() {
         row.querySelectorAll('.time-input:not([disabled])').forEach(i => i.classList.remove('warn-ignore', 'text-danger', 'fw-bold'));
 
         if (esFestivo) {
-            // El valor viene del HorarioService y se refleja en CONFIG.minutos_festivo
             const minFestivo = CONFIG.minutos_festivo;
             sumM += minFestivo; 
             sumTotalMin += minFestivo;
@@ -174,38 +187,21 @@ function recalcularPantalla() {
         let hM = 0, hT = 0, tieneError = false;
 
         if (mi > 0 && mo > 0) {
-            if (mi > parseTime(CONFIG.oblig_m_in)) {
-                row.querySelector('[name="m_in"]').classList.add('text-danger', 'fw-bold');
-                msjs.push(`<i class="bi bi-exclamation-circle-fill text-danger"></i> <strong>${diaNom}</strong>: Entrada posterior a hora obligatoria (${CONFIG.oblig_m_in}).`);
-                tieneError = true;
-            }
-            if (mo < parseTime(CONFIG.oblig_m_out)) {
-                row.querySelector('[name="m_out"]').classList.add('text-danger', 'fw-bold');
-                msjs.push(`<i class="bi bi-exclamation-circle-fill text-danger"></i> <strong>${diaNom}</strong>: Salida anterior a hora obligatoria (${CONFIG.oblig_m_out}).`);
-                tieneError = true;
-            }
-
-            if (mi < parseTime(CONFIG.inicio_conteo)) row.querySelector('[name="m_in"]').classList.add('warn-ignore');
-            if (mo > parseTime(CONFIG.tope_m)) row.querySelector('[name="m_out"]').classList.add('warn-ignore');
-
             const startM = Math.max(mi, parseTime(CONFIG.inicio_conteo));
             const endM = Math.min(mo, parseTime(CONFIG.tope_m));
             hM = Math.max(0, endM - startM);
-
             const limitM = esTele ? CONFIG.limite_m_tele : CONFIG.limite_m_presencial;
             if (hM > limitM) hM = limitM;
         }
 
         if (tiEl && !tiEl.disabled && ti > 0 && to > 0) {
             const inicioLegalT = mo + CONFIG.descanso_min;
-            if (ti < inicioLegalT) tiEl.classList.add('warn-ignore');
-            const startT = Math.max(ti, parseTime(CONFIG.tope_m), inicioLegalT);
+            const startT = Math.max(ti, inicioLegalT);
             const endT = Math.min(to, parseTime(CONFIG.tope_t));
             hT = Math.max(0, endT - startT);
             if (hT > CONFIG.limite_tarde) hT = CONFIG.limite_tarde;
         }
 
-        if (tieneError) row.classList.add('fila-incumple');
         sumM += hM; sumT += hT; sumTotalMin += (hM + hT);
 
         row.querySelector('.subtotal-m-celda').innerText = formatTime(hM);
@@ -213,48 +209,62 @@ function recalcularPantalla() {
         row.querySelector('.total-dia-celda').innerText = formatTime(hM + hT);
     });
 
-    const objMin = parseTime(document.getElementById('val-objetivo').innerText + ":00");
+    const objMin = Math.round(parseTime(document.getElementById('val-objetivo').innerText + ":00"));
+    const totalMinRedondeado = Math.round(sumTotalMin);
+
     document.getElementById('footer-total-m').innerText = formatTime(sumM);
     document.getElementById('footer-total-t').innerText = formatTime(sumT);
-    document.getElementById('footer-total-gen').innerText = formatTime(sumTotalMin);
-    document.getElementById('kpi-realizado').innerText = formatTime(sumTotalMin);
+    document.getElementById('footer-total-gen').innerText = formatTime(totalMinRedondeado);
+    document.getElementById('kpi-realizado').innerText = formatTime(totalMinRedondeado);
     
-    const dif = objMin - sumTotalMin;
     const kpiCard = document.getElementById('kpi-status-card');
     const kpiDifText = document.getElementById('kpi-diferencia');
     const kpiStatusText = document.getElementById('kpi-status-text');
     const kpiLabel = document.getElementById('kpi-label-dif');
 
-    if (sumTotalMin >= objMin) {
+    if (totalMinRedondeado >= objMin) {
         kpiCard.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex flex-column justify-content-center bg-success text-white";
-        kpiDifText.innerText = formatTime(sumTotalMin - objMin);
-        kpiLabel.innerText = "Exceso Semanal";
+        kpiDifText.innerText = formatTime(totalMinRedondeado - objMin);
+        kpiLabel.innerText = (totalMinRedondeado === objMin) ? "Diferencia" : "Exceso Semanal";
         kpiStatusText.innerText = "¡OBJETIVO CUMPLIDO!";
     } else {
         kpiCard.className = "card p-3 shadow-sm border-0 text-center h-100 d-flex flex-column justify-content-center bg-warning text-dark";
-        kpiDifText.innerText = formatTime(dif);
+        kpiDifText.innerText = formatTime(objMin - totalMinRedondeado);
         kpiLabel.innerText = "Faltan";
         kpiStatusText.innerText = "HORAS PENDIENTES";
     }
 
     alertasCont.innerHTML = msjs.length > 0 
-        ? `<div class="alert alert-custom shadow-sm border-0 py-2 small animate__animated animate__fadeIn"><ul class="mb-0 list-unstyled">${msjs.map(m=>`<li class="py-1">${m}</li>`).join('')}</ul></div>`
+        ? `<div class="alert alert-custom shadow-sm border-0 py-2 small"><ul class="mb-0 list-unstyled">${msjs.map(m=>`<li class="py-1">${m}</li>`).join('')}</ul></div>`
         : "";
+}
+
+async function persistirCambio(fecha, campo, valor) {
+    try {
+        const response = await fetch('/horario/guardar-ajax/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ fecha: fecha, campo: campo, valor: valor })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            console.log(`Guardado ${campo} para ${fecha}`);
+        }
+    } catch (err) {
+        console.error("Error al persistir datos:", err);
+    }
 }
 
 document.querySelectorAll('.time-input').forEach(input => {
     input.addEventListener('input', recalcularPantalla); 
-    input.addEventListener('change', async function() {
+    input.addEventListener('change', function() {
         if (this.disabled) return;
         const tr = this.closest('tr');
-        const payload = { fecha: tr.dataset.fecha, campo: this.name, valor: this.value };
-        try {
-            await fetch('/horario/api/guardar/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                body: JSON.stringify(payload)
-            });
-        } catch (err) { console.error("Error al guardar:", err); }
+        persistirCambio(tr.dataset.fecha, this.name, this.value);
     });
 });
 

@@ -42,60 +42,57 @@ class HorarioService:
 
     @classmethod
     def calcular_horas_reales(cls, reg, config, fecha: date) -> tuple[float, float]:
-        """Calcula horas de mañana y tarde aplicando topes, límites y horas por festivos (oficiales, manuales y recurrentes)."""
+        """Calcula horas de mañana y tarde aplicando topes, límites y transición por fichaje."""
         from apps.calendario.models import EventoCalendario
         
-        # 1. Comprobación de Festivo/Permiso para computar horas automáticas
-        
-        # A. Evento manual en el calendario (VAC, ASU, etc)
+        # 1. Comprobación de Festivos / Permisos
         evento = EventoCalendario.objects.filter(usuario=reg.usuario, fecha=fecha).first()
-        
-        # B. Festivo oficial (Holidays)
         import holidays
         festivos_oficiales = holidays.CountryHoliday('ES', prov='GA', years=fecha.year)
         es_festivo_oficial = fecha in festivos_oficiales
-        
-        # C. Festivo Especial/Recurrente (Configurado en Opciones)
         es_festivo_recurrente = FestivoEspecial.objects.filter(
             usuario=reg.usuario, 
             dia=fecha.day, 
             mes=fecha.month
         ).exists()
 
-        # Si el día es festivo por cualquiera de las 3 vías, aplicamos horas configuradas
         if evento or es_festivo_oficial or es_festivo_recurrente:
             horas_computables = getattr(config, 'horas_festivo', 7.5)
             return round(horas_computables, 2), 0.0
 
-        # 2. Cálculo para día laboral normal (Fichajes)
+        # 2. Cálculo Mañana
         h_m = 0.0
+        mo_decimal = 0.0
         if reg.m_in and reg.m_out:
             mi = cls.hhmm_a_decimal(reg.m_in)
             mo = cls.hhmm_a_decimal(reg.m_out)
+            mo_decimal = mo
             inicio_c = cls.hhmm_a_decimal(config.hora_inicio_conteo)
             tope_m = cls.hhmm_a_decimal(config.max_hora_manana)
             
+            calc_m = max(0, min(mo, tope_m) - max(mi, inicio_c))
+            
             dia_sem = fecha.isoweekday()
             if isinstance(config, HorarioEspecial):
-                dias_tele = config.get_dias_list_tele()
-                limit_m = config.max_teletrabajo if dia_sem in dias_tele else config.max_presencial
+                limit_m = config.max_teletrabajo if dia_sem in config.get_dias_list_tele() else config.max_presencial
             else:
-                dias_tele = config.get_dias_list('dias_teletrabajo')
-                limit_m = config.max_horas_manana_teletrabajo if dia_sem in dias_tele else config.max_horas_manana_presencial
+                limit_m = config.max_horas_manana_teletrabajo if dia_sem in config.get_dias_list('dias_teletrabajo') else config.max_horas_manana_presencial
 
-            calc_m = max(0, min(mo, tope_m) - max(mi, inicio_c))
             h_m = min(calc_m, limit_m)
 
+        # 3. Cálculo Tarde (CORREGIDO: Sin barrera de Tope Mañana)
         h_t = 0.0
         if reg.t_in and reg.t_out:
             ti = cls.hhmm_a_decimal(reg.t_in)
             to = cls.hhmm_a_decimal(reg.t_out)
-            tope_m = cls.hhmm_a_decimal(config.max_hora_manana)
             tope_t = cls.hhmm_a_decimal(config.max_hora_tarde)
-            limit_t = config.max_horas_tarde
-
-            calc_t = max(0, min(to, tope_t) - max(ti, tope_m))
-            h_t = min(calc_t, limit_t)
+            descanso = config.minutos_descanso / 60.0
+            
+            # La tarde empieza en el fichaje de entrada o tras el descanso obligatorio de la mañana
+            inicio_tarde_real = max(ti, mo_decimal + descanso)
+            
+            calc_t = max(0, min(to, tope_t) - inicio_tarde_real)
+            h_t = min(calc_t, config.max_horas_tarde)
 
         return round(h_m, 2), round(h_t, 2)
 

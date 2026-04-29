@@ -113,11 +113,19 @@ class DiaHorarioEspecial(models.Model):
 class SaldoDias(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saldos')
     anio = models.IntegerField(default=2026)
-    vacaciones_totales = models.IntegerField(default=22)
-    asuntos_propios_totales = models.IntegerField(default=6)
     
-    vacaciones_disfrutadas = models.IntegerField(default=0)
+    # Desglose Vacaciones
+    vacaciones_libres_totales = models.IntegerField(default=4)
+    vacaciones_bloques_totales = models.IntegerField(default=18)
+    
+    asuntos_propios_totales = models.IntegerField(default=6)
+    enfermedad_sin_justificar_totales = models.IntegerField(default=3)
+    
+    # Consumo (actualizado desde CalendarioService)
+    vacaciones_libres_disfrutadas = models.IntegerField(default=0)
+    vacaciones_bloques_disfrutadas = models.IntegerField(default=0)
     asuntos_disfrutados = models.IntegerField(default=0)
+    enfermedad_sin_justificar_disfrutados = models.IntegerField(default=0)
 
     class Meta:
         unique_together = ['usuario', 'anio']
@@ -128,6 +136,14 @@ class SaldoDias(models.Model):
         return f"Saldo {self.anio} - {self.usuario.username}"
 
     @property
+    def vacaciones_totales(self):
+        return self.vacaciones_libres_totales + self.vacaciones_bloques_totales
+
+    @property
+    def vacaciones_disfrutadas(self):
+        return self.vacaciones_libres_disfrutadas + self.vacaciones_bloques_disfrutadas
+
+    @property
     def vacaciones_restantes(self):
         return max(0, self.vacaciones_totales - self.vacaciones_disfrutadas)
 
@@ -135,8 +151,11 @@ class SaldoDias(models.Model):
     def asuntos_restantes(self):
         return max(0, self.asuntos_propios_totales - self.asuntos_disfrutados)
 
+    @property
+    def enfermedad_restante(self):
+        return max(0, self.enfermedad_sin_justificar_totales - self.enfermedad_sin_justificar_disfrutados)
+
 class FestivoEspecial(models.Model):
-    DIAS = HorarioDefecto.DIAS
     MESES = [
         (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
         (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),

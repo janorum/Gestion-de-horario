@@ -22,6 +22,12 @@ class HorarioSemanalView(LoginRequiredMixin, View):
         fecha_ref = datetime.strptime(fecha_str, '%Y-%m-%d').date() if fecha_str else date.today()
 
         datos_semana = HorarioService.obtener_datos_semana(fecha_ref, usuario=request.user)
+        
+        # Lógica de navegación corregida (se calcula en Python para evitar errores de template)
+        lunes = datos_semana['lunes']
+        fecha_anterior = lunes - timedelta(days=7)
+        fecha_posterior = lunes + timedelta(days=7)
+        
         total_semanal_decimal = 0.0
 
         for dia in datos_semana.get('dias', []):
@@ -89,6 +95,8 @@ class HorarioSemanalView(LoginRequiredMixin, View):
             **datos_semana,
             'fecha_ref': fecha_ref,
             'fecha_hoy': date.today(),
+            'fecha_anterior': fecha_anterior.strftime('%Y-%m-%d'),
+            'fecha_posterior': fecha_posterior.strftime('%Y-%m-%d'),
             'config': ConfiguracionHorario.objects.get_or_create(usuario=request.user)[0],
         }
         return render(request, self.template_name, context)
@@ -108,7 +116,8 @@ class HorarioSemanalView(LoginRequiredMixin, View):
     def _obtener_config_por_fecha(self, usuario, fecha):
         especiales = HorarioEspecial.objects.filter(usuario=usuario)
         for esp in especiales:
-            inicio, fin = date(fecha.year, esp.mes_inicio, esp.dia_inicio), date(fecha.year, esp.mes_fin, esp.dia_fin)
+            inicio = date(fecha.year, esp.mes_inicio, esp.dia_inicio)
+            fin = date(fecha.year, esp.mes_fin, esp.dia_fin)
             if (inicio <= fin and inicio <= fecha <= fin) or (inicio > fin and (fecha >= inicio or fecha <= fin)):
                 return esp
         return ConfiguracionHorario.objects.get_or_create(usuario=usuario)[0]
@@ -135,7 +144,10 @@ class GuardarRegistroAjaxView(LoginRequiredMixin, View):
             config = HorarioSemanalView()._obtener_config_por_fecha(request.user, fecha_dt)
             registro, _ = RegistroDiario.objects.get_or_create(fecha=fecha_dt, usuario=request.user)
             
-            setattr(registro, data.get('campo'), data.get('valor') if data.get('valor') else None)
+            # Persistencia en la base de datos
+            campo = data.get('campo')
+            valor = data.get('valor') if data.get('valor') else None
+            setattr(registro, campo, valor)
             registro.save()
 
             h_m, h_t = HorarioService.calcular_horas_reales(registro, config, fecha_dt)

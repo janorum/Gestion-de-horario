@@ -90,12 +90,12 @@
             <div class="col-md-5">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold text-primary text-uppercase small mb-3"><i class="bi bi-plus-circle-fill"></i> Añadir Día Festivo Recurrente</h6>
+                        <h6 class="fw-bold text-primary text-uppercase small mb-3"><i class="bi bi-plus-circle-fill"></i> Añadir Festivo Recurrente</h6>
                         <form method="POST">
                             {% csrf_token %}
                             <div class="mb-3">
                                 <label class="x-small text-muted text-uppercase fw-bold">Nombre del Festivo</label>
-                                <input type="text" name="festivo_nombre" class="form-control border-0 bg-light" placeholder="Ej: Aniversario" required>
+                                <input type="text" name="festivo_nombre" class="form-control border-0 bg-light" required>
                             </div>
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
@@ -111,9 +111,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <button type="submit" name="add_festivo_especial" class="btn btn-primary w-100 fw-bold">
-                                <i class="bi bi-save"></i> GUARDAR FESTIVO
-                            </button>
+                            <button type="submit" name="add_festivo_especial" class="btn btn-primary w-100 fw-bold">GUARDAR FESTIVO</button>
                         </form>
                     </div>
                 </div>
@@ -121,37 +119,24 @@
             <div class="col-md-7">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold text-dark text-uppercase small mb-3"><i class="bi bi-list-check"></i> Festivos configurados (Todos los años)</h6>
-                        <div class="table-responsive">
-                            <table class="table align-middle">
-                                <thead class="table-light x-small fw-bold text-muted text-uppercase">
-                                    <tr>
-                                        <th>Nombre</th>
-                                        <th>Fecha</th>
-                                        <th class="text-end">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for f in festivos_recurrentes %}
-                                    <tr>
-                                        <td class="fw-bold text-primary">{{ f.nombre }}</td>
-                                        <td>{{ f.dia }} de {{ f.get_mes_display }}</td>
-                                        <td class="text-end">
-                                            <form method="POST" style="display:inline;">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="festivo_id" value="{{ f.id }}">
-                                                <button type="submit" name="borrar_festivo_especial" class="btn btn-link text-danger p-0">
-                                                    <i class="bi bi-trash fs-5"></i>
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    {% empty %}
-                                    <tr><td colspan="3" class="text-center text-muted py-4 small">No tienes festivos recurrentes configurados.</td></tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                        <h6 class="fw-bold text-dark text-uppercase small mb-3">Festivos en todos los años</h6>
+                        <table class="table align-middle">
+                            <tbody>
+                                {% for f in festivos_recurrentes %}
+                                <tr>
+                                    <td class="fw-bold text-primary">{{ f.nombre }}</td>
+                                    <td>{{ f.dia }} de {{ f.get_mes_display }}</td>
+                                    <td class="text-end">
+                                        <form method="POST">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="festivo_id" value="{{ f.id }}">
+                                            <button type="submit" name="borrar_festivo_especial" class="btn btn-link text-danger p-0"><i class="bi bi-trash fs-5"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -166,22 +151,40 @@
                         <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-calculator me-2"></i> Configuración de Saldo 2026</h5>
                         <form method="POST">
                             {% csrf_token %}
-                            <div class="mb-4">
-                                <label class="small fw-bold text-uppercase text-muted mb-2 d-block">Días de Vacaciones Anuales</label>
-                                <div class="input-group input-group-lg">
-                                    <span class="input-group-text bg-light border-0"><i class="bi bi-sun"></i></span>
-                                    <input type="number" name="vac_totales" class="form-control bg-light border-0 fw-bold" value="{{ saldo.vacaciones_totales }}">
+                            
+                            <div class="p-3 bg-light rounded-3 mb-4">
+                                <label class="small fw-bold text-uppercase text-muted mb-3 d-block">Desglose de Vacaciones</label>
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <label class="x-small text-muted text-uppercase">Días Libres</label>
+                                        <input type="number" name="vac_libres" class="form-control border-0 fw-bold" value="{{ saldo.vacaciones_libres_totales }}">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="x-small text-muted text-uppercase">Días en Bloque</label>
+                                        <input type="number" name="vac_bloques" class="form-control border-0 fw-bold" value="{{ saldo.vacaciones_bloques_totales }}">
+                                    </div>
                                 </div>
+                                <small class="text-muted x-small mt-2 d-block">* Los bloques deben ser de mínimo 5 días.</small>
                             </div>
+
                             <div class="mb-4">
-                                <label class="small fw-bold text-uppercase text-muted mb-2 d-block">Días de Asuntos Propios</label>
+                                <label class="small fw-bold text-uppercase text-muted mb-2 d-block">Asuntos Propios</label>
                                 <div class="input-group input-group-lg">
                                     <span class="input-group-text bg-light border-0"><i class="bi bi-briefcase"></i></span>
                                     <input type="number" name="asu_totales" class="form-control bg-light border-0 fw-bold" value="{{ saldo.asuntos_propios_totales }}">
                                 </div>
                             </div>
+
+                            <div class="mb-4">
+                                <label class="small fw-bold text-uppercase text-muted mb-2 d-block">Enfermedad sin Justificar</label>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light border-0"><i class="bi bi-thermometer-half"></i></span>
+                                    <input type="number" name="enf_totales" class="form-control bg-light border-0 fw-bold" value="{{ saldo.enfermedad_sin_justificar_totales }}">
+                                </div>
+                            </div>
+
                             <button type="submit" name="update_saldo" class="btn btn-primary w-100 fw-bold py-3">
-                                <i class="bi bi-check-circle me-2"></i> ACTUALIZAR SALDO ANUAL
+                                <i class="bi bi-check-circle me-2"></i> ACTUALIZAR SALDOS
                             </button>
                         </form>
                     </div>
@@ -191,13 +194,13 @@
             <div class="col-lg-7">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body p-4">
-                        <h5 class="fw-bold mb-4 text-dark"><i class="bi bi-pie-chart-fill me-2"></i> Resumen de Consumo</h5>
+                        <h5 class="fw-bold mb-4 text-dark"><i class="bi bi-pie-chart-fill me-2"></i> Estado de Consumo</h5>
                         
                         <div class="p-3 mb-4 rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-10">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div>
                                     <h3 class="fw-bold text-primary mb-0">{{ saldo.vacaciones_restantes }}</h3>
-                                    <small class="fw-bold text-uppercase text-primary x-small">Días disponibles</small>
+                                    <small class="fw-bold text-uppercase text-primary x-small">Vacaciones Disponibles</small>
                                 </div>
                                 <div class="text-end">
                                     <span class="badge bg-primary">{{ saldo.vacaciones_disfrutadas }} gastados</span>
@@ -205,17 +208,15 @@
                                 </div>
                             </div>
                             <div class="progress bg-white bg-opacity-50" style="height: 10px;">
-                                <div class="progress-bar bg-primary" role="progressbar" 
-                                     style="width: {% widthratio saldo.vacaciones_disfrutadas saldo.vacaciones_totales 100 %}%">
-                                </div>
+                                <div class="progress-bar bg-primary" style="width: {% widthratio saldo.vacaciones_disfrutadas saldo.vacaciones_totales 100 %}%"></div>
                             </div>
                         </div>
 
-                        <div class="p-3 rounded-4 bg-info bg-opacity-10 border border-info border-opacity-10">
+                        <div class="p-3 mb-4 rounded-4 bg-info bg-opacity-10 border border-info border-opacity-10">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div>
                                     <h3 class="fw-bold text-info mb-0">{{ saldo.asuntos_restantes }}</h3>
-                                    <small class="fw-bold text-uppercase text-info x-small">Días disponibles</small>
+                                    <small class="fw-bold text-uppercase text-info x-small">Asuntos Disponibles</small>
                                 </div>
                                 <div class="text-end">
                                     <span class="badge bg-info text-dark">{{ saldo.asuntos_disfrutados }} gastados</span>
@@ -223,14 +224,24 @@
                                 </div>
                             </div>
                             <div class="progress bg-white bg-opacity-50" style="height: 10px;">
-                                <div class="progress-bar bg-info" role="progressbar" 
-                                     style="width: {% widthratio saldo.asuntos_disfrutados saldo.asuntos_propios_totales 100 %}%">
-                                </div>
+                                <div class="progress-bar bg-info" style="width: {% widthratio saldo.asuntos_disfrutados saldo.asuntos_propios_totales 100 %}%"></div>
                             </div>
                         </div>
 
-                        <div class="mt-4 p-3 bg-light rounded-3">
-                            <small class="text-muted"><i class="bi bi-info-circle-fill me-1"></i> Estos datos se sincronizan con tu calendario de forma automática.</small>
+                        <div class="p-3 rounded-4 bg-danger bg-opacity-10 border border-danger border-opacity-10">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <h3 class="fw-bold text-danger mb-0">{{ saldo.enfermedad_restante }}</h3>
+                                    <small class="fw-bold text-uppercase text-danger x-small">Enfermedad sin Justificar</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-danger">{{ saldo.enfermedad_sin_justificar_disfrutados }} gastados</span>
+                                    <div class="x-small text-muted mt-1 text-uppercase">Total: {{ saldo.enfermedad_sin_justificar_totales }}</div>
+                                </div>
+                            </div>
+                            <div class="progress bg-white bg-opacity-50" style="height: 10px;">
+                                <div class="progress-bar bg-danger" style="width: {% widthratio saldo.enfermedad_sin_justificar_disfrutados saldo.enfermedad_sin_justificar_totales 100 %}%"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -245,29 +256,27 @@
             <form method="POST">
                 {% csrf_token %}
                 <div class="modal-header bg-primary text-white border-0 py-3">
-                    <h6 class="modal-title fw-bold">Crear Nuevo Periodo Especial Anual</h6>
+                    <h6 class="modal-title fw-bold">Crear Periodo Especial</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="x-small text-uppercase fw-bold text-muted">Nombre Descriptivo</label>
-                        <input type="text" name="nombre_especial" class="form-control border-0 bg-light" placeholder="Ej: Jornada de Verano" required>
+                        <label class="x-small text-uppercase fw-bold text-muted">Nombre</label>
+                        <input type="text" name="nombre_especial" class="form-control border-0 bg-light" required>
                     </div>
                     <div class="row g-3">
                         <div class="col-6">
-                            <label class="x-small text-uppercase fw-bold text-muted">Fecha de Inicio</label>
+                            <label class="x-small text-uppercase fw-bold text-muted">Inicio</label>
                             <input type="date" name="fecha_inicio" class="form-control border-0 bg-light" required>
                         </div>
                         <div class="col-6">
-                            <label class="x-small text-uppercase fw-bold text-muted">Fecha de Fin</label>
+                            <label class="x-small text-uppercase fw-bold text-muted">Fin</label>
                             <input type="date" name="fecha_fin" class="form-control border-0 bg-light" required>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0 p-4 pt-0">
-                    <button type="submit" name="crear_especial" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
-                        <i class="bi bi-calendar-check-fill me-2"></i> REGISTRAR Y CONFIGURAR
-                    </button>
+                    <button type="submit" name="crear_especial" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">REGISTRAR</button>
                 </div>
             </form>
         </div>
@@ -275,17 +284,15 @@
 </div>
 
 <script>
-    // Tu lógica de JavaScript para máscaras de tiempo y checkboxes se mantiene igual
     document.addEventListener('DOMContentLoaded', function() {
-        // ... (Tu script original de máscaras de tiempo y sincronización)
+        // Lógica para inicializar máscaras de tiempo si es necesario
     });
 </script>
 
 <style>
     .x-small { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; }
-    .nav-pills .nav-link { color: #6c757d; border: 1px solid transparent; margin-right: 5px; transition: all 0.3s ease; }
+    .nav-pills .nav-link { color: #6c757d; border: 1px solid transparent; margin-right: 5px; }
     .nav-pills .nav-link.active { background-color: #0d6efd; box-shadow: 0 4px 10px rgba(13, 110, 253, 0.2); }
-    .accordion-button:not(.collapsed) { background-color: #f8fbff; color: #0d6efd; box-shadow: none; }
-    input:disabled { cursor: not-allowed; opacity: 0.5; background-color: #e9ecef !important; }
+    .progress-bar { transition: width 0.6s ease; }
 </style>
 {% endblock %}

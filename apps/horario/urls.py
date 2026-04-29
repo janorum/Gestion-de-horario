@@ -1,10 +1,13 @@
 from django.urls import path
 from .views import HorarioSemanalView, GuardarRegistroAjaxView
 
-app_name = 'horario' # Este es el prefijo 'horario:'
+app_name = 'horario'
 
 urlpatterns = [
-    # El nombre 'ver_horario' es el que busca el template
+    # Vista principal del horario semanal
     path('', HorarioSemanalView.as_view(), name='ver_horario'), 
-    path('ajax/guardar/', GuardarRegistroAjaxView.as_view(), name='guardar_registro_ajax'),
+    
+    # Ruta crítica para el guardado automático vía AJAX
+    # Esta URL debe coincidir con la llamada fetch en tu JS: '/horario/guardar-ajax/'
+    path('guardar-ajax/', GuardarRegistroAjaxView.as_view(), name='guardar_registro_ajax'),
 ]
