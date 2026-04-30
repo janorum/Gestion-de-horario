@@ -77,7 +77,6 @@
                         <option value="BORRAR">❌ BORRAR DÍA</option>
                     </select>
                 </div>
-                <!-- Contadores actualizados -->
                 <div class="small fw-bold text-uppercase d-flex gap-3" style="font-size: 0.65rem;">
                     <span>VAC: <span id="val-vac" class="text-success">{{ saldo.vacaciones_restantes }}</span></span>
                     <span>ASU: <span id="val-asu" class="text-info">{{ saldo.asuntos_restantes }}</span></span>
@@ -255,7 +254,6 @@ function pintarEnArrastre(celda) {
 
 async function manejadorClickDia(celda) {
     if (celda.dataset.esOficial === 'true') return;
-
     const pincelActual = document.getElementById('pincelTipo').value;
 
     if (modoPinturaActivo) {
@@ -263,11 +261,13 @@ async function manejadorClickDia(celda) {
             pintarDiaAsync(celda.dataset.fecha, '', pincelActual);
         }
     } else {
+        // MODO EDICIÓN RESTAURADO: Permite añadir tipo si está vacío o editar descripción
         const descActual = celda.querySelector('.label-desc')?.innerText || '';
         let tipoExistente = '';
         const clases = ['FESTIVO', 'FESTIVO_EXTRA', 'VACACIONES', 'ASUNTOS_PROPIOS', 'BAJA', 'ENFERMEDAD', 'SIN_SUELDO', 'OTRO'];
         clases.forEach(c => { if(celda.classList.contains(c)) tipoExistente = c; });
         
+        // Si el día está vacío, proponemos el tipo del pincel. Si no, mantenemos el que tiene.
         const tipoFinal = tipoExistente || (pincelActual !== 'BORRAR' ? pincelActual : 'OTRO');
         const fechaLegible = new Date(celda.dataset.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
 
@@ -312,7 +312,6 @@ async function pintarDiaAsync(fecha, descripcion = '', tipo = null) {
 
         if (response.ok) {
             const data = await response.json();
-            // Actualización de contadores incluyendo ENF
             if (data.vacaciones_restantes !== undefined) document.getElementById('val-vac').innerText = data.vacaciones_restantes;
             if (data.asuntos_restantes !== undefined) document.getElementById('val-asu').innerText = data.asuntos_restantes;
             if (data.enfermedad_sin_justificar_restantes !== undefined) document.getElementById('val-enf').innerText = data.enfermedad_sin_justificar_restantes;

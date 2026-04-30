@@ -90,9 +90,6 @@ class HorarioEspecial(models.Model):
         if not self.dias_obligatorios_tarde: return []
         return [int(d.strip()) for d in str(self.dias_obligatorios_tarde).split(',') if d.strip().isdigit()]
 
-    def get_dias_list_tarde(self):
-        return self.get_dias_list_oblig()
-
     def get_dias_list_tele(self):
         if not self.dias_teletrabajo: return []
         return [int(d.strip()) for d in str(self.dias_teletrabajo).split(',') if d.strip().isdigit()]
@@ -114,14 +111,11 @@ class SaldoDias(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saldos')
     anio = models.IntegerField(default=2026)
     
-    # Desglose Vacaciones
     vacaciones_libres_totales = models.IntegerField(default=4)
     vacaciones_bloques_totales = models.IntegerField(default=18)
-    
     asuntos_propios_totales = models.IntegerField(default=6)
     enfermedad_sin_justificar_totales = models.IntegerField(default=3)
     
-    # Consumo (actualizado desde CalendarioService)
     vacaciones_libres_disfrutadas = models.IntegerField(default=0)
     vacaciones_bloques_disfrutadas = models.IntegerField(default=0)
     asuntos_disfrutados = models.IntegerField(default=0)
@@ -151,8 +145,9 @@ class SaldoDias(models.Model):
     def asuntos_restantes(self):
         return max(0, self.asuntos_propios_totales - self.asuntos_disfrutados)
 
+    # ESTA ES LA PROPIEDAD QUE CAUSABA EL ERROR (Debe llamarse exactamente así)
     @property
-    def enfermedad_restante(self):
+    def enfermedad_sin_justificar_restantes(self):
         return max(0, self.enfermedad_sin_justificar_totales - self.enfermedad_sin_justificar_disfrutados)
 
 class FestivoEspecial(models.Model):
