@@ -19,21 +19,35 @@ class CalendarioService:
 
     @staticmethod
     def traducir_festivo(nombre_en: str) -> str:
+        """Traductor manual ampliado con los festivos que aparecen en tu imagen."""
         traducciones = {
-            "New Year's Day": "Año Nuevo", "Epiphany": "Reyes Magos", "Saint Joseph's Day": "San José",
-            "Maundy Thursday": "Jueves Santo", "Good Friday": "Viernes Santo", "Fiesta Nacional": "Fiesta Nacional",
-            "Constitution Day": "Constitución", "Christmas Day": "Navidad", "All Saints' Day": "Todos los Santos",
-            "Immaculate Conception": "Inmaculada Concepción"
+            # Festivos Nacionales
+            "New Year's Day": "Año Nuevo",
+            "Epiphany": "Reyes Magos",
+            "Saint Joseph's Day": "San José",
+            "Maundy Thursday": "Jueves Santo",
+            "Good Friday": "Viernes Santo",
+            "Labor Day": "Día del Trabajo",
+            "Assumption Day": "Asunción de la Virgen",
+            "Hispanic Day": "Fiesta Nacional",
+            "National Day": "Fiesta Nacional",
+            "All Saints' Day": "Todos los Santos",
+            "Constitution Day": "Día de la Constitución",
+            "Immaculate Conception": "Inmaculada Concepción",
+            "Christmas Day": "Navidad",
+            
+            # Festivos Específicos de Galicia (los que salen en tu captura)
+            "Saint John the Baptist": "San Juan",
+            "Galician National Day": "Día de Galicia",
+            "Day of Galician Literature": "Día de las Letras Gallegas"
         }
         return traducciones.get(nombre_en, nombre_en)
 
     @classmethod
     def actualizar_y_obtener_saldos(cls, usuario):
-        """Lógica centralizada: Sincroniza días gastados con la tabla SaldoDias desglosada."""
         anio_actual = date.today().year
         saldo, _ = SaldoDias.objects.get_or_create(usuario=usuario, anio=anio_actual)
         
-        # Contamos eventos agrupados por tipo para el año actual
         eventos = EventoCalendario.objects.filter(
             usuario=usuario, 
             fecha__year=anio_actual
@@ -46,17 +60,13 @@ class CalendarioService:
         
         for e in eventos:
             tipo = e['tipo']
-            # Lógica para Vacaciones (Por defecto a bloques, ajustable según lógica de negocio)
             if tipo in ['VACACIONES', 'VAC']:
                 vac_bloques_gastadas = e['total']
-            # Lógica para Asuntos Propios
             elif tipo in ['ASUNTOS_PROPIOS', 'ASU']:
                 asu_gastados = e['total']
-            # Lógica para Enfermedad sin Justificar
             elif tipo == 'ENFERMEDAD':
                 enf_gastados = e['total']
         
-        # Sincronizamos los campos físicos del modelo SaldoDias
         saldo.vacaciones_bloques_disfrutadas = vac_bloques_gastadas
         saldo.vacaciones_libres_disfrutadas = vac_libres_gastadas
         saldo.asuntos_disfrutados = asu_gastados
@@ -74,8 +84,9 @@ class CalendarioService:
         cal = calendar.Calendar(firstweekday=0)
         mes_it = cal.monthdatescalendar(año, mes)
         
-        # 1. Festivos Oficiales (Holidays)
+        # Festivos Oficiales
         festivos_oficiales = holidays.CountryHoliday('ES', prov='GA', years=año)
+        
         mapa_eventos = {}
         for fecha, nombre in festivos_oficiales.items():
             mapa_eventos[fecha] = {
@@ -83,7 +94,7 @@ class CalendarioService:
                 'desc': cls.traducir_festivo(nombre), 'es_oficial': True
             }
 
-        # 2. Festivos Especiales (Recurrentes de la App Opciones)
+        # Festivos Especiales
         especiales = FestivoEspecial.objects.filter(usuario=usuario, mes=mes)
         for esp in especiales:
             try:
@@ -96,7 +107,7 @@ class CalendarioService:
             except ValueError:
                 continue
 
-        # 3. Eventos manuales de la base de datos (Calendario)
+        # Eventos manuales
         eventos_db = EventoCalendario.objects.filter(fecha__year=año, usuario=usuario)
         for e in eventos_db:
             tipo_key = 'FESTIVO_EXTRA' if e.tipo == 'FESTIVO' else e.tipo
@@ -136,7 +147,6 @@ class CalendarioService:
                 })
             semanas.append(dias_semana)
         
-        # Sincronizamos saldos antes de devolver los datos
         saldo_actual = cls.actualizar_y_obtener_saldos(usuario)
             
         return {

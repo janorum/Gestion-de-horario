@@ -6,6 +6,7 @@
         <label class="form-label small fw-bold text-muted text-uppercase">Navegación Semanal</label>
         <form id="form-fecha" method="GET" class="d-flex gap-2">
             <div class="input-group shadow-sm">
+                <!-- Botón Semana Anterior -->
                 <a href="?fecha={{ fecha_anterior }}" class="btn btn-outline-primary d-flex align-items-center" title="Semana anterior">
                     <i class="bi bi-chevron-left"></i>
                 </a>
@@ -13,6 +14,7 @@
                 <input type="date" name="fecha" id="input-fecha" class="form-control text-center fw-bold" 
                        value="{{ fecha_ref|date:'Y-m-d' }}" onchange="this.form.submit()">
                 
+                <!-- Botón Semana Posterior -->
                 <a href="?fecha={{ fecha_posterior }}" class="btn btn-outline-primary d-flex align-items-center" title="Semana siguiente">
                     <i class="bi bi-chevron-right"></i>
                 </a>
@@ -63,8 +65,17 @@
                             </td>
 
                             {% if item.es_festivo %}
-                                <td colspan="2" class="text-muted small italic">
-                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">{{ item.tipo_evento }}</span>
+                                <td colspan="2" class="text-center">
+                                    <div class="d-flex flex-column align-items-center justify-content-center">
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-1 fw-bold">
+                                            {{ item.tipo_evento|upper }}
+                                        </span>
+                                        {% if item.descripcion_evento %}
+                                            <small class="text-muted mt-1 fst-italic" style="font-size: 0.75rem;">
+                                                {{ item.descripcion_evento }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td class="bg-light fw-bold text-primary celda-valor-festivo">{{ item.total_m_str }}</td>
                                 <td colspan="2" class="text-muted small">-</td>
@@ -184,7 +195,7 @@ function recalcularPantalla() {
         const ti = tiEl ? parseTime(tiEl.value) : 0;
         const to = toEl ? parseTime(toEl.value) : 0;
 
-        let hM = 0, hT = 0, tieneError = false;
+        let hM = 0, hT = 0;
 
         if (mi > 0 && mo > 0) {
             const startM = Math.max(mi, parseTime(CONFIG.inicio_conteo));
@@ -233,10 +244,6 @@ function recalcularPantalla() {
         kpiLabel.innerText = "Faltan";
         kpiStatusText.innerText = "HORAS PENDIENTES";
     }
-
-    alertasCont.innerHTML = msjs.length > 0 
-        ? `<div class="alert alert-custom shadow-sm border-0 py-2 small"><ul class="mb-0 list-unstyled">${msjs.map(m=>`<li class="py-1">${m}</li>`).join('')}</ul></div>`
-        : "";
 }
 
 async function persistirCambio(fecha, campo, valor) {
@@ -273,12 +280,6 @@ document.addEventListener('DOMContentLoaded', recalcularPantalla);
 
 <style>
 .fila-festivo td { background-color: #f8f9fa !important; color: #adb5bd !important; }
-#tabla-horarios .fila-incumple td { background-color: #fff1f1 !important; }
-#tabla-horarios .fila-incumple td.bg-light { background-color: #ffe5e5 !important; }
-.fila-incumple input { color: #dc3545 !important; font-weight: bold; }
-.warn-ignore { background-color: #f1f3f5 !important; color: #0d6efd !important; text-decoration: underline dotted #adb5bd !important; }
-.alert-custom { background-color: #fffafa; border-left: 5px solid #dc3545 !important; }
-.input-disabled { background-color: #f8f9fa !important; cursor: not-allowed; color: #dee2e6 !important; }
 .transition-all { transition: all 0.3s ease; }
 </style>
 {% endblock %}

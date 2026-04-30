@@ -1,4 +1,5 @@
 import json
+import holidays
 from datetime import datetime, date, timedelta
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
@@ -8,9 +9,10 @@ from apps.horario.models import RegistroDiario
 from apps.horario.services.horario_service import HorarioService
 from apps.opciones.models import ConfiguracionHorario, HorarioEspecial, HorarioDefecto, DiaHorarioEspecial, FestivoEspecial
 from apps.calendario.models import EventoCalendario
+from apps.calendario.services.calendario_service import CalendarioService
 
 class HorarioSemanalView(LoginRequiredMixin, View):
-    """Vista principal para la gestión de horarios con integración de festivos recurrentes."""
+    """Vista principal para la gestión de horarios con integración de festivos y navegación."""
     template_name = 'horario/horario.html'
 
     FESTIVOS_NACIONALES = [
@@ -23,35 +25,44 @@ class HorarioSemanalView(LoginRequiredMixin, View):
 
         datos_semana = HorarioService.obtener_datos_semana(fecha_ref, usuario=request.user)
         
-        # Lógica de navegación corregida (se calcula en Python para evitar errores de template)
+        # Lógica de navegación semanal
         lunes = datos_semana['lunes']
         fecha_anterior = lunes - timedelta(days=7)
         fecha_posterior = lunes + timedelta(days=7)
+        
+        # Cargar festivos oficiales de la provincia para el año consultado
+        festivos_oficiales = holidays.CountryHoliday('ES', prov='GA', years=fecha_ref.year)
         
         total_semanal_decimal = 0.0
 
         for dia in datos_semana.get('dias', []):
             fecha_dia = dia['fecha']
             reg = dia['reg']
-            dia_semana_num = str(fecha_dia.isoweekday()) # "1" a "7"
+            dia_semana_num = str(fecha_dia.isoweekday())
             
-            # --- LÓGICA DE DETECCIÓN DE FESTIVOS (NACIONALES, CALENDARIO Y RECURRENTES) ---
-            es_festivo_nacional = (fecha_dia.day, fecha_dia.month) in self.FESTIVOS_NACIONALES
+            # --- DETECCIÓN DE NOMBRES DE FESTIVOS Y EVENTOS ---
             evento_calendario = EventoCalendario.objects.filter(usuario=request.user, fecha=fecha_dia).first()
             festivo_recurrente = FestivoEspecial.objects.filter(usuario=request.user, dia=fecha_dia.day, mes=fecha_dia.month).first()
+            nombre_oficial = festivos_oficiales.get(fecha_dia)
 
-            if es_festivo_nacional or evento_calendario or festivo_recurrente:
+            if nombre_oficial or evento_calendario or festivo_recurrente:
                 config = self._obtener_config_por_fecha(request.user, fecha_dia)
                 horas_festivo = getattr(config, 'horas_festivo', 7.5)
                 horas_str = HorarioService.decimal_a_hhmm(horas_festivo)
 
                 dia['es_festivo'] = True
+                
+                # Asignación de nombre y descripción con jerarquía de prioridad
                 if evento_calendario:
                     dia['tipo_evento'] = evento_calendario.get_tipo_display()
+                    dia['descripcion_evento'] = evento_calendario.descripcion or "Evento registrado en calendario"
                 elif festivo_recurrente:
                     dia['tipo_evento'] = festivo_recurrente.nombre
+                    dia['descripcion_evento'] = "Festivo recurrente configurado"
                 else:
-                    dia['tipo_evento'] = "Festivo Nacional"
+                    # Traducir nombre oficial (ej. "New Year's Day" -> "Año Nuevo")
+                    dia['tipo_evento'] = CalendarioService.traducir_festivo(nombre_oficial)
+                    dia['descripcion_evento'] = "Festivo oficial"
 
                 dia['total_m_str'], dia['total_t_str'], dia['total_dia_str'] = horas_str, "00:00", horas_str
                 dia['alertas'], dia['incumple'], dia['tiene_tarde'] = [], False, False
@@ -59,7 +70,7 @@ class HorarioSemanalView(LoginRequiredMixin, View):
                 dia['es_festivo'] = False
                 config = self._obtener_config_por_fecha(request.user, fecha_dia)
                 
-                # --- LÓGICA DE DESBLOQUEO DE TARDE ---
+                # Lógica de tarde basada en configuración
                 if isinstance(config, HorarioEspecial):
                     raw_dias = getattr(config, 'dias_obligatorios_tarde', "")
                 else:
@@ -68,14 +79,14 @@ class HorarioSemanalView(LoginRequiredMixin, View):
                 lista_tardes = [d.strip() for d in str(raw_dias).split(',') if d.strip()]
                 dia['tiene_tarde'] = dia_semana_num in lista_tardes
                 
-                # Inyectar defaults si el registro está vacío
+                # Inyectar defaults si no hay fichajes
                 if not (reg.m_in or reg.m_out or reg.t_in or reg.t_out):
                     defaults = self._obtener_defaults(request.user, config, int(dia_semana_num))
                     if defaults:
                         reg.m_in, reg.m_out = defaults.m_in, defaults.m_out
                         reg.t_in, reg.t_out = defaults.t_in, defaults.t_out
                 
-                # Cálculo y validación
+                # Cálculo de horas y validación de entrada/salida
                 h_m, h_t = HorarioService.calcular_horas_reales(reg, config, fecha_dia)
                 dia['alertas'], dia['incumple'] = self._validar_registro(reg, config, fecha_dia)
                 
@@ -108,9 +119,11 @@ class HorarioSemanalView(LoginRequiredMixin, View):
         
         mi, mo = HorarioService.hhmm_a_decimal(reg.m_in), HorarioService.hhmm_a_decimal(reg.m_out)
         if mi > HorarioService.hhmm_a_decimal(config.oblig_manana_in):
-            alertas.append(f"Entrada tardía ({config.oblig_manana_in})"); incumple = True
+            alertas.append(f"Entrada tardía ({config.oblig_manana_in})")
+            incumple = True
         if mo < HorarioService.hhmm_a_decimal(config.oblig_manana_out):
-            alertas.append(f"Salida temprana ({config.oblig_manana_out})"); incumple = True
+            alertas.append(f"Salida temprana ({config.oblig_manana_out})")
+            incumple = True
         return alertas, incumple
 
     def _obtener_config_por_fecha(self, usuario, fecha):
@@ -133,18 +146,19 @@ class GuardarRegistroAjaxView(LoginRequiredMixin, View):
             data = json.loads(request.body)
             fecha_dt = datetime.strptime(data.get('fecha'), '%Y-%m-%d').date()
             
-            # Bloquear edición si es festivo nacional, evento de calendario o festivo recurrente
-            es_festivo_nacional = (fecha_dt.day, fecha_dt.month) in HorarioSemanalView.FESTIVOS_NACIONALES
+            # Bloquear edición si el día está marcado como festivo en cualquier origen
+            import holidays
+            festivos_oficiales = holidays.CountryHoliday('ES', prov='GA', years=fecha_dt.year)
+            es_festivo_oficial = fecha_dt in festivos_oficiales
             es_evento = EventoCalendario.objects.filter(usuario=request.user, fecha=fecha_dt).exists()
             es_festivo_recurrente = FestivoEspecial.objects.filter(usuario=request.user, dia=fecha_dt.day, mes=fecha_dt.month).exists()
 
-            if es_festivo_nacional or es_evento or es_festivo_recurrente:
+            if es_festivo_oficial or es_evento or es_festivo_recurrente:
                 return JsonResponse({'status': 'error', 'message': 'Día festivo no editable.'}, status=403)
 
             config = HorarioSemanalView()._obtener_config_por_fecha(request.user, fecha_dt)
             registro, _ = RegistroDiario.objects.get_or_create(fecha=fecha_dt, usuario=request.user)
             
-            # Persistencia en la base de datos
             campo = data.get('campo')
             valor = data.get('valor') if data.get('valor') else None
             setattr(registro, campo, valor)

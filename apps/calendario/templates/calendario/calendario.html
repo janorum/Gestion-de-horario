@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- SweetAlert2 para diálogos más bonitos -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <div class="row g-4">
     <div class="col-xl-8">
         <div class="card shadow-sm border-0 mb-3 bg-white">
@@ -74,9 +77,11 @@
                         <option value="BORRAR">❌ BORRAR DÍA</option>
                     </select>
                 </div>
+                <!-- Contadores actualizados -->
                 <div class="small fw-bold text-uppercase d-flex gap-3" style="font-size: 0.65rem;">
                     <span>VAC: <span id="val-vac" class="text-success">{{ saldo.vacaciones_restantes }}</span></span>
                     <span>ASU: <span id="val-asu" class="text-info">{{ saldo.asuntos_restantes }}</span></span>
+                    <span>ENF: <span id="val-enf" class="text-warning">{{ saldo.enfermedad_sin_justificar_restantes }}</span></span>
                 </div>
             </div>
         </div>
@@ -176,7 +181,7 @@ let todosAbiertos = false;
 let modoPinturaActivo = true; 
 let isDragging = false;
 let lastPaintedDate = null;
-let mensajeMostrado = false; // Para no saturar con alerts en arrastre
+let mensajeMostrado = false;
 
 window.addEventListener('mouseup', () => { 
     isDragging = false; 
@@ -187,48 +192,46 @@ window.addEventListener('mouseup', () => {
 function toggleModoPintar() {
     modoPinturaActivo = document.getElementById('switchModoPintar').checked;
     document.querySelectorAll('.dia-calendario').forEach(c => {
-        modoPinturaActivo ? c.classList.add('modo-pincel') : c.classList.remove('modo-pincel');
+        if (modoPinturaActivo) {
+            c.classList.add('modo-pincel');
+            c.style.cursor = 'pointer';
+        } else {
+            c.classList.remove('modo-pincel');
+            c.style.cursor = 'default';
+        }
     });
 }
 
-// VALIDACIÓN DE REGLAS
 function esAccionValida(celda, pincel, silenciar = false) {
     if (pincel === 'BORRAR') return true;
-
-    // 1. Regla Fines de Semana (Sáb=6, Dom=7)
     const diaSemana = parseInt(celda.dataset.diaSemana);
     if ((diaSemana === 6 || diaSemana === 7) && (pincel === 'FESTIVO' || pincel === 'VACACIONES' || pincel === 'ASUNTOS_PROPIOS')) {
         if (!silenciar && !mensajeMostrado) {
-            alert("No se pueden asignar festivos, vacaciones o asuntos propios en sábado o domingo.");
+            Swal.fire({ icon: 'error', title: 'Acción no permitida', text: 'No se pueden asignar festivos, vacaciones o asuntos propios en fin de semana.' });
             mensajeMostrado = true;
         }
         return false;
     }
-
-    // 2. Regla Saldo Vacaciones
     if (pincel === 'VACACIONES') {
         const saldoVac = parseInt(document.getElementById('val-vac').innerText);
         if (saldoVac <= 0 && !celda.classList.contains('VACACIONES')) {
             if (!silenciar && !mensajeMostrado) {
-                alert("No te quedan días de vacaciones disponibles.");
+                Swal.fire({ icon: 'warning', title: 'Sin saldo', text: 'No te quedan días de vacaciones disponibles.' });
                 mensajeMostrado = true;
             }
             return false;
         }
     }
-
-    // 3. Regla Saldo Asuntos Propios
     if (pincel === 'ASUNTOS_PROPIOS') {
         const saldoAsu = parseInt(document.getElementById('val-asu').innerText);
         if (saldoAsu <= 0 && !celda.classList.contains('ASUNTOS_PROPIOS')) {
             if (!silenciar && !mensajeMostrado) {
-                alert("No te quedan días de asuntos propios disponibles.");
+                Swal.fire({ icon: 'warning', title: 'Sin saldo', text: 'No te quedan días de asuntos propios disponibles.' });
                 mensajeMostrado = true;
             }
             return false;
         }
     }
-
     return true;
 }
 
@@ -236,43 +239,68 @@ function iniciarArrastre(celda) {
     if (!modoPinturaActivo || celda.dataset.esOficial === 'true') return;
     const pincel = document.getElementById('pincelTipo').value;
     if (!esAccionValida(celda, pincel)) return;
-    
     isDragging = true;
-    pintarDiaAsync(celda.dataset.fecha);
+    pintarDiaAsync(celda.dataset.fecha, '', pincel);
     lastPaintedDate = celda.dataset.fecha;
 }
 
 function pintarEnArrastre(celda) {
     if (!isDragging || !modoPinturaActivo || celda.dataset.esOficial === 'true') return;
     if (lastPaintedDate === celda.dataset.fecha) return;
-    
     const pincel = document.getElementById('pincelTipo').value;
-    if (!esAccionValida(celda, pincel, true)) return; // silenciar alerts en arrastre
-
+    if (!esAccionValida(celda, pincel, true)) return; 
     lastPaintedDate = celda.dataset.fecha;
-    pintarDiaAsync(celda.dataset.fecha);
+    pintarDiaAsync(celda.dataset.fecha, '', pincel);
 }
 
-function manejadorClickDia(celda) {
-    if (!modoPinturaActivo) {
-        // Lógica para abrir modal (se asume que existe la función abrirEditor definida previamente)
-        // abrirEditor(celda.dataset.fecha, ...);
+async function manejadorClickDia(celda) {
+    if (celda.dataset.esOficial === 'true') return;
+
+    const pincelActual = document.getElementById('pincelTipo').value;
+
+    if (modoPinturaActivo) {
+        if (esAccionValida(celda, pincelActual)) {
+            pintarDiaAsync(celda.dataset.fecha, '', pincelActual);
+        }
     } else {
-        const pincel = document.getElementById('pincelTipo').value;
-        if (esAccionValida(celda, pincel)) {
-            pintarDiaAsync(celda.dataset.fecha);
+        const descActual = celda.querySelector('.label-desc')?.innerText || '';
+        let tipoExistente = '';
+        const clases = ['FESTIVO', 'FESTIVO_EXTRA', 'VACACIONES', 'ASUNTOS_PROPIOS', 'BAJA', 'ENFERMEDAD', 'SIN_SUELDO', 'OTRO'];
+        clases.forEach(c => { if(celda.classList.contains(c)) tipoExistente = c; });
+        
+        const tipoFinal = tipoExistente || (pincelActual !== 'BORRAR' ? pincelActual : 'OTRO');
+        const fechaLegible = new Date(celda.dataset.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+
+        const { value: nuevaDesc } = await Swal.fire({
+            title: `<span class="small">Día ${fechaLegible}</span>`,
+            html: `<div class="mb-2"><span class="badge ${tipoFinal} p-2 text-uppercase">${tipoFinal.replace('_', ' ')}</span></div>`,
+            input: 'text',
+            inputLabel: 'Añadir o editar descripción:',
+            inputValue: descActual,
+            showCancelButton: true,
+            confirmButtonText: 'Guardar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#212529',
+            inputPlaceholder: 'Ej: Cita médica, puente...',
+            inputAttributes: { autocapitalize: 'off' }
+        });
+        
+        if (nuevaDesc !== undefined) {
+            if (esAccionValida(celda, tipoFinal)) {
+                pintarDiaAsync(celda.dataset.fecha, nuevaDesc, tipoFinal);
+            }
         }
     }
 }
 
-async function pintarDiaAsync(fecha) {
-    const tipoSeleccionado = document.getElementById('pincelTipo').value;
+async function pintarDiaAsync(fecha, descripcion = '', tipo = null) {
+    const tipoSeleccionado = tipo || document.getElementById('pincelTipo').value;
     const celda = document.getElementById(`celda-${fecha}`);
     
     const formData = new FormData();
     formData.append('fecha', fecha);
     formData.append('tipo', tipoSeleccionado);
-    formData.append('descripcion', '');
+    formData.append('descripcion', descripcion);
     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
     try {
@@ -284,9 +312,10 @@ async function pintarDiaAsync(fecha) {
 
         if (response.ok) {
             const data = await response.json();
-            
+            // Actualización de contadores incluyendo ENF
             if (data.vacaciones_restantes !== undefined) document.getElementById('val-vac').innerText = data.vacaciones_restantes;
             if (data.asuntos_restantes !== undefined) document.getElementById('val-asu').innerText = data.asuntos_restantes;
+            if (data.enfermedad_sin_justificar_restantes !== undefined) document.getElementById('val-enf').innerText = data.enfermedad_sin_justificar_restantes;
 
             const tipoVisual = (tipoSeleccionado === 'FESTIVO') ? 'FESTIVO_EXTRA' : tipoSeleccionado;
 
@@ -302,8 +331,12 @@ async function pintarDiaAsync(fecha) {
 
             if (tipoSeleccionado !== 'BORRAR') {
                 celda.classList.add(tipoVisual);
-                infoContenedor.innerHTML = `<div class="fw-bolder text-uppercase text-truncate label-tipo" style="font-size: 0.6rem; line-height: 1;">${tipoSeleccionado}</div>`;
-                inyectarEnResumen(fecha, tipoVisual, tipoSeleccionado);
+                let html = `<div class="fw-bolder text-uppercase text-truncate label-tipo" style="font-size: 0.6rem; line-height: 1;">${tipoSeleccionado}</div>`;
+                if (descripcion) {
+                    html += `<div class="opacity-90 mt-1 pt-1 border-top border-dark border-opacity-10 label-desc" style="font-size: 0.55rem; line-height: 1.1; font-style: italic;">${descripcion}</div>`;
+                }
+                infoContenedor.innerHTML = html;
+                inyectarEnResumen(fecha, tipoVisual, tipoSeleccionado, descripcion);
                 actualizarContadoresMes(fecha, tipoVisual, 'SUMAR');
             } else {
                 infoContenedor.innerHTML = '';
@@ -312,7 +345,7 @@ async function pintarDiaAsync(fecha) {
     } catch (error) { console.error('Error:', error); }
 }
 
-function inyectarEnResumen(fecha, tipoVisual, tipoLabel) {
+function inyectarEnResumen(fecha, tipoVisual, tipoLabel, descripcion = '') {
     const fechaObj = new Date(fecha + "T00:00:00");
     const mesIndex = fechaObj.getMonth() + 1;
     const diaNum = fechaObj.getDate();
@@ -322,7 +355,7 @@ function inyectarEnResumen(fecha, tipoVisual, tipoLabel) {
     contenedorEventos.insertAdjacentHTML('afterbegin', `
         <div data-fecha="${fecha}" data-tipo="${tipoVisual}" class="p-2 d-flex justify-content-between align-items-center ${tipoVisual} festivo-resumen item-evento-lista" style="border-left: 5px solid rgba(0,0,0,0.15) !important;">
             <div>
-                <div class="fw-bold small">Día marcado</div>
+                <div class="fw-bold small">${descripcion || 'Día marcado'}</div>
                 <div class="small opacity-90" style="font-size:0.65rem">${diaNum} - ${tipoLabel}</div>
             </div>
             <button type="button" onclick="borrarEventoDesdeUI('${fecha}')" class="btn btn-sm btn-light border p-0 px-2 fw-bold text-dark" style="background: rgba(255,255,255,0.4);">&times;</button>
@@ -367,6 +400,7 @@ async function borrarEventoAsync(eventoId, fecha) {
             const data = await response.json();
             if (data.vacaciones_restantes !== undefined) document.getElementById('val-vac').innerText = data.vacaciones_restantes;
             if (data.asuntos_restantes !== undefined) document.getElementById('val-asu').innerText = data.asuntos_restantes;
+            if (data.enfermedad_sin_justificar_restantes !== undefined) document.getElementById('val-enf').innerText = data.enfermedad_sin_justificar_restantes;
 
             const fila = document.getElementById(`fila-evento-${eventoId}`);
             if (fila) { 
@@ -397,6 +431,8 @@ function toggleTodosAcordeones() {
         todosAbiertos ? instance.show() : instance.hide();
     });
 }
+
+document.addEventListener('DOMContentLoaded', toggleModoPintar);
 </script>
 
 <style>
@@ -416,5 +452,6 @@ function toggleTodosAcordeones() {
     .ENFERMEDAD { background-color: #6610f2 !important; color: white !important; }
     .SIN_SUELDO { background-color: #212529 !important; color: white !important; }
     .OTRO { background-color: #6c757d !important; color: white !important; }
+    .swal2-input { font-size: 1rem !important; }
 </style>
 {% endblock %}
