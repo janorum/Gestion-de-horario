@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py migrate horario)",
+      "Bash(python manage.py check)"
+    ]
+  }
+}

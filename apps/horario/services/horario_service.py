@@ -114,6 +114,22 @@ class HorarioService:
         return config_opc.horas_semanales
 
     @classmethod
+    def validar_registro(cls, reg, config) -> tuple[list, bool]:
+        alertas = []
+        incumple = False
+        if not reg.m_in or not reg.m_out:
+            return alertas, incumple
+        mi = cls.hhmm_a_decimal(reg.m_in)
+        mo = cls.hhmm_a_decimal(reg.m_out)
+        if mi > cls.hhmm_a_decimal(config.oblig_manana_in):
+            alertas.append(f"Entrada tardía ({config.oblig_manana_in})")
+            incumple = True
+        if mo < cls.hhmm_a_decimal(config.oblig_manana_out):
+            alertas.append(f"Salida temprana ({config.oblig_manana_out})")
+            incumple = True
+        return alertas, incumple
+
+    @classmethod
     def obtener_datos_semana(cls, fecha_referencia: date, usuario) -> Dict[str, Any]:
         """Recupera el desglose semanal para la vista de horario."""
         from apps.horario.models import RegistroDiario

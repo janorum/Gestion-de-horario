@@ -70,10 +70,11 @@
                         <input class="form-check-input" type="checkbox" id="switchModoPintar" onchange="toggleModoPintar()" checked>
                         <label class="form-check-label small fw-bold text-uppercase" for="switchModoPintar">Modo Pintura</label>
                     </div>
-                    <select id="pincelTipo" class="form-select form-select-sm bg-secondary text-white border-0" style="width: auto;">
+                    <select id="pincelTipo" class="form-select form-select-sm bg-secondary text-white border-0" style="width: auto;" onchange="resetSeleccionBloque()">
                         {% for valor, etiqueta in tipos_opciones %}
                         <option value="{{ valor }}">{{ etiqueta }}</option>
                         {% endfor %}
+                        <option value="BLOQUE_VAC" style="background-color: #198754; color: white;">🌴 VAC. EN BLOQUE</option>
                         <option value="BORRAR">❌ BORRAR DÍA</option>
                     </select>
                 </div>
@@ -181,6 +182,7 @@ let modoPinturaActivo = true;
 let isDragging = false;
 let lastPaintedDate = null;
 let mensajeMostrado = false;
+let fechaInicioBloque = null;
 
 window.addEventListener('mouseup', () => { 
     isDragging = false; 
@@ -204,6 +206,7 @@ function toggleModoPintar() {
 function esAccionValida(celda, pincel, silenciar = false) {
     if (pincel === 'BORRAR') return true;
     const diaSemana = parseInt(celda.dataset.diaSemana);
+    
     if ((diaSemana === 6 || diaSemana === 7) && (pincel === 'FESTIVO' || pincel === 'VACACIONES' || pincel === 'ASUNTOS_PROPIOS')) {
         if (!silenciar && !mensajeMostrado) {
             Swal.fire({ icon: 'error', title: 'Acción no permitida', text: 'No se pueden asignar festivos, vacaciones o asuntos propios en fin de semana.' });
@@ -237,6 +240,7 @@ function esAccionValida(celda, pincel, silenciar = false) {
 function iniciarArrastre(celda) {
     if (!modoPinturaActivo || celda.dataset.esOficial === 'true') return;
     const pincel = document.getElementById('pincelTipo').value;
+    if (pincel === 'BLOQUE_VAC') return; // Arrastre no disponible para bloques
     if (!esAccionValida(celda, pincel)) return;
     isDragging = true;
     pintarDiaAsync(celda.dataset.fecha, '', pincel);
@@ -256,18 +260,30 @@ async function manejadorClickDia(celda) {
     if (celda.dataset.esOficial === 'true') return;
     const pincelActual = document.getElementById('pincelTipo').value;
 
+    // Lógica Vacaciones en Bloque
+    if (pincelActual === 'BLOQUE_VAC') {
+        if (!fechaInicioBloque) {
+            fechaInicioBloque = celda.dataset.fecha;
+            celda.classList.add('bloque-inicio-temp');
+            Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'Inicio marcado. Clica en el día final.', showConfirmButton: false, timer: 2000 });
+        } else {
+            const fechaFinBloque = celda.dataset.fecha;
+            await procesarBloqueVacaciones(fechaInicioBloque, fechaFinBloque);
+            resetSeleccionBloque();
+        }
+        return;
+    }
+
     if (modoPinturaActivo) {
         if (esAccionValida(celda, pincelActual)) {
             pintarDiaAsync(celda.dataset.fecha, '', pincelActual);
         }
     } else {
-        // MODO EDICIÓN RESTAURADO: Permite añadir tipo si está vacío o editar descripción
         const descActual = celda.querySelector('.label-desc')?.innerText || '';
         let tipoExistente = '';
         const clases = ['FESTIVO', 'FESTIVO_EXTRA', 'VACACIONES', 'ASUNTOS_PROPIOS', 'BAJA', 'ENFERMEDAD', 'SIN_SUELDO', 'OTRO'];
         clases.forEach(c => { if(celda.classList.contains(c)) tipoExistente = c; });
         
-        // Si el día está vacío, proponemos el tipo del pincel. Si no, mantenemos el que tiene.
         const tipoFinal = tipoExistente || (pincelActual !== 'BORRAR' ? pincelActual : 'OTRO');
         const fechaLegible = new Date(celda.dataset.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
 
@@ -281,8 +297,7 @@ async function manejadorClickDia(celda) {
             confirmButtonText: 'Guardar',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#212529',
-            inputPlaceholder: 'Ej: Cita médica, puente...',
-            inputAttributes: { autocapitalize: 'off' }
+            inputPlaceholder: 'Ej: Cita médica...',
         });
         
         if (nuevaDesc !== undefined) {
@@ -291,6 +306,54 @@ async function manejadorClickDia(celda) {
             }
         }
     }
+}
+
+async function procesarBloqueVacaciones(fInicio, fFin) {
+    const d1 = new Date(fInicio);
+    const d2 = new Date(fFin);
+    const inicio = d1 < d2 ? d1 : d2;
+    const fin = d1 < d2 ? d2 : d1;
+
+    let fechasValidas = [];
+    let tempDate = new Date(inicio);
+
+    while (tempDate <= fin) {
+        const diaSemana = tempDate.getDay(); 
+        const fechaIso = tempDate.toISOString().split('T')[0];
+        const celdaElemento = document.getElementById(`celda-${fechaIso}`);
+
+        if (diaSemana !== 0 && diaSemana !== 6 && celdaElemento && celdaElemento.dataset.esOficial !== 'true') {
+            fechasValidas.push(fechaIso);
+        }
+        tempDate.setDate(tempDate.getDate() + 1);
+    }
+
+    if (fechasValidas.length < 5) {
+        Swal.fire('Bloque insuficiente', 'Los bloques deben ser de al menos 5 días laborables.', 'warning');
+        return;
+    }
+
+    const confirmacion = await Swal.fire({
+        title: '¿Aplicar bloque?',
+        html: `Se marcarán <b>${fechasValidas.length} días</b> de vacaciones laborables.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, aplicar'
+    });
+
+    if (confirmacion.isConfirmed) {
+        for (const f of fechasValidas) {
+            await pintarDiaAsync(f, 'Vacaciones en bloque', 'VACACIONES');
+        }
+        Swal.fire('Completado', 'Bloque de vacaciones asignado.', 'success');
+    }
+}
+
+function resetSeleccionBloque() {
+    if (fechaInicioBloque) {
+        document.getElementById(`celda-${fechaInicioBloque}`)?.classList.remove('bloque-inicio-temp');
+    }
+    fechaInicioBloque = null;
 }
 
 async function pintarDiaAsync(fecha, descripcion = '', tipo = null) {
@@ -452,5 +515,6 @@ document.addEventListener('DOMContentLoaded', toggleModoPintar);
     .SIN_SUELDO { background-color: #212529 !important; color: white !important; }
     .OTRO { background-color: #6c757d !important; color: white !important; }
     .swal2-input { font-size: 1rem !important; }
+    .bloque-inicio-temp { outline: 3px dashed #198754 !important; outline-offset: -3px; }
 </style>
 {% endblock %}
