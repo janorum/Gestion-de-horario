@@ -30,7 +30,7 @@ class LoginConRegistroView(LoginView):
 
 def registro_view(request):
     if request.user.is_authenticated:
-        return redirect('calendario:ver_calendario')
+        return redirect('horario:ver_horario')
 
     form = RegistroForm(request.POST or None)
 
@@ -38,7 +38,7 @@ def registro_view(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect('calendario:ver_calendario')
+            return redirect('horario:ver_horario')
         # Errores: volver al login con la pestaña de registro activa
         return render(request, 'login.html', {
             'reg_form': form,

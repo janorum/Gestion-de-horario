@@ -101,5 +101,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # gestor_horarios_django/settings.py
 
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'calendario:ver_calendario' # O 'horario:ver_horario' según prefieras
+LOGIN_REDIRECT_URL = 'horario:ver_horario'
 LOGOUT_REDIRECT_URL = 'login'
