@@ -168,3 +168,4 @@ class FestivoEspecial(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.dia}/{self.get_mes_display()})"
+    

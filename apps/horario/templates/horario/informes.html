@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Informes — Gestor de Horarios{% endblock %}
+
+{% block content %}
+
+{# ── Cabecera con navegación ── #}
+<div class="row mb-4 align-items-end">
+  <div class="col-md-7">
+    <label class="form-label small fw-bold text-muted text-uppercase">Mes a visualizar</label>
+    <div class="d-flex gap-2 align-items-center">
+      <a href="?año={{ mes_anterior.año }}&mes={{ mes_anterior.mes }}" class="btn btn-outline-primary">
+        <i class="bi bi-chevron-left"></i>
+      </a>
+      <form method="GET" class="d-flex gap-2">
+        <select name="mes" class="form-select" onchange="this.form.submit()">
+          {% for num, nombre in meses %}
+            <option value="{{ num }}" {% if num == mes %}selected{% endif %}>{{ nombre }}</option>
+          {% endfor %}
+        </select>
+        <select name="año" class="form-select" onchange="this.form.submit()">
+          {% for a in años %}
+            <option value="{{ a }}" {% if a == año %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      <a href="?año={{ mes_siguiente.año }}&mes={{ mes_siguiente.mes }}" class="btn btn-outline-primary">
+        <i class="bi bi-chevron-right"></i>
+      </a>
+    </div>
+  </div>
+  <div class="col-md-5 text-end">
+    <h5 class="fw-bold text-dark mb-1">{{ mes_nombre }} {{ año }}</h5>
+    <a href="{% url 'horario:exportar_excel' %}?año={{ año }}&mes={{ mes }}"
+       class="btn btn-success shadow-sm">
+      <i class="bi bi-file-earmark-excel me-1"></i> Exportar Excel
+    </a>
+  </div>
+</div>
+
+{# ── KPIs del mes ── #}
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card p-3 text-center border-start border-primary border-5 shadow-sm">
+      <small class="text-muted text-uppercase fw-bold">Horas Trabajadas</small>
+      <div class="h2 fw-bold text-primary mb-0">{{ informe.trabajado_str }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3 text-center border-start border-secondary border-5 shadow-sm">
+      <small class="text-muted text-uppercase fw-bold">Objetivo del Mes</small>
+      <div class="h2 fw-bold text-secondary mb-0">{{ informe.objetivo_str }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3 text-center border-start {% if informe.es_exceso %}border-success{% else %}border-warning{% endif %} border-5 shadow-sm">
+      <small class="text-muted text-uppercase fw-bold">Balance del Mes</small>
+      <div class="h2 fw-bold {% if informe.es_exceso %}text-success{% else %}text-warning{% endif %} mb-0">
+        {% if informe.es_exceso %}+{% else %}-{% endif %}{{ informe.balance_str }}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Horas restantes del año ── #}
+<div class="card shadow-sm border-0 mb-4 p-3">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <span class="fw-bold text-dark"><i class="bi bi-hourglass-split text-info me-1"></i> Horas restantes para acabar {{ año }}</span>
+      <small class="text-muted ms-2">(desde mañana hasta el 31 de diciembre)</small>
+    </div>
+    <span class="badge bg-info fs-6 px-4 py-2">{{ restantes.horas_str }}</span>
+  </div>
+</div>
+
+{# ── Tabla semanal ── #}
+<div class="card shadow-sm border-0 overflow-hidden">
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle text-center">
+      <thead class="table-light">
+        <tr>
+          <th class="text-start ps-4 py-3">Semana</th>
+          <th>Lunes</th>
+          <th>Martes</th>
+          <th>Miércoles</th>
+          <th>Jueves</th>
+          <th>Viernes</th>
+          <th class="text-primary">Trabajado</th>
+          <th class="text-muted">Objetivo</th>
+          <th>Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sem in informe.semanas %}
+        <tr {% if sem.es_futura %}class="opacity-50"{% endif %}>
+          <td class="text-start ps-4 fw-bold text-muted small">
+            Sem. {{ sem.lunes|date:"d/m" }}
+            {% if sem.es_futura %}<span class="badge bg-secondary ms-1" style="font-size:0.65rem;">Pendiente</span>{% endif %}
+          </td>
+          {% for dia in sem.dias %}
+            <td class="{% if not dia.es_del_mes %}opacity-50{% elif dia.es_festivo %}bg-warning bg-opacity-10{% endif %}">
+              {% if dia.es_festivo %}
+                <span title="{{ dia.tipo_festivo }}" class="text-warning fw-bold small">
+                  <i class="bi bi-calendar-x"></i><br>
+                  <small>{{ dia.tipo_festivo|truncatechars:10 }}</small>
+                </span>
+              {% elif dia.es_futuro %}
+                <span class="text-muted small">—</span>
+              {% elif dia.horas == 0 %}
+                <span class="text-danger small fw-bold">00:00</span>
+              {% else %}
+                <span class="fw-bold {% if not dia.es_del_mes %}text-muted{% elif dia.horas >= 7.0 %}text-success{% else %}text-warning{% endif %}">
+                  {{ dia.horas_str }}
+                </span>
+              {% endif %}
+            </td>
+          {% endfor %}
+          <td class="fw-bold text-primary">
+            {% if sem.trabajado > 0 %}{{ sem.trabajado_str }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-muted">
+            {% if sem.es_futura %}
+              <span class="text-muted fst-italic small">—</span>
+            {% else %}
+              {{ sem.objetivo_str }}
+            {% endif %}
+          </td>
+          <td>
+            {% if sem.es_futura %}
+              <span class="text-muted fst-italic small">—</span>
+            {% else %}
+              <span class="badge {% if sem.es_exceso %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                {% if sem.es_exceso %}+{% else %}-{% endif %}{{ sem.balance_str }}
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light border-top fw-bold">
+        <tr>
+          <td colspan="6" class="text-end pe-3 py-3">TOTAL MES:</td>
+          <td class="text-primary">{{ informe.trabajado_str }}</td>
+          <td class="text-muted">{{ informe.objetivo_str }}</td>
+          <td>
+            <span class="badge fs-6 {% if informe.es_exceso %}bg-success{% else %}bg-warning text-dark{% endif %}">
+              {% if informe.es_exceso %}+{% else %}-{% endif %}{{ informe.balance_str }}
+            </span>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
