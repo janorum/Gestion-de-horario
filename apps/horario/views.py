@@ -86,6 +86,10 @@ class HorarioSemanalView(LoginRequiredMixin, View):
         datos_semana['faltan_str'] = HorarioService.decimal_a_hhmm(max(0, objetivo - total_semanal_decimal))
         datos_semana['cumple'] = total_semanal_decimal >= objetivo
 
+        # Detectar si la semana actual cae dentro de un período especial
+        config_semana = HorarioService.obtener_config_por_fecha(request.user, lunes)
+        periodo_especial = config_semana if isinstance(config_semana, HorarioEspecial) else None
+
         context = {
             **datos_semana,
             'fecha_ref': fecha_ref,
@@ -93,6 +97,7 @@ class HorarioSemanalView(LoginRequiredMixin, View):
             'fecha_anterior': fecha_anterior.strftime('%Y-%m-%d'),
             'fecha_posterior': fecha_posterior.strftime('%Y-%m-%d'),
             'config': ConfiguracionHorario.objects.get_or_create(usuario=request.user)[0],
+            'periodo_especial': periodo_especial,
         }
         return render(request, self.template_name, context)
 

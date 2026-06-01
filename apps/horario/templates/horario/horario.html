@@ -33,6 +33,22 @@
     </div>
 </div>
 
+{% if periodo_especial %}
+<div class="alert d-flex align-items-center gap-3 mb-3 shadow-sm border-0 py-2 px-3"
+     style="background: linear-gradient(135deg, #6f42c1 0%, #7952b3 100%); color: white; border-radius: 10px;">
+    <i class="bi bi-stars fs-4 opacity-75"></i>
+    <div>
+        <span class="fw-bold">Período especial activo:</span>
+        <span class="ms-1 fs-6">{{ periodo_especial.nombre }}</span>
+        <span class="ms-2 opacity-75 small">
+            ({{ periodo_especial.dia_inicio }}/{{ periodo_especial.mes_inicio }}
+            – {{ periodo_especial.dia_fin }}/{{ periodo_especial.mes_fin }})
+            · {{ periodo_especial.horas_semanales }}h/sem
+        </span>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <div class="col-12">
         <div class="card shadow-sm border-0 overflow-hidden">

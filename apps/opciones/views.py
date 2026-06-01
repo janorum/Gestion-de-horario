@@ -76,7 +76,9 @@ class OpcionesMainView(LoginRequiredMixin, View):
         return redirect('opciones:main')
 
     def _safe_time_to_float(self, val, default=0.0):
-        if not val:
+        # Sólo usamos el default cuando el campo está ausente o vacío,
+        # nunca cuando el usuario guardó explícitamente un 0.
+        if val is None or str(val).strip() == '':
             return default
         try:
             val_str = str(val).strip()
